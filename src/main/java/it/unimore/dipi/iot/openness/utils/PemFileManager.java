@@ -2,8 +2,8 @@ package it.unimore.dipi.iot.openness.utils;
 
 import java.io.*;
 import java.security.*;
-import java.security.spec.InvalidKeySpecException;
 
+import it.unimore.dipi.iot.openness.exception.PemFileManagerException;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -14,14 +14,15 @@ import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
 import org.bouncycastle.util.io.pem.PemObject;
-import org.bouncycastle.util.io.pem.PemReader;
 import org.bouncycastle.util.io.pem.PemWriter;
  
-public class PemFile {
-	
+public class PemFileManager {
+
+	public static final String PEM_TYPE_CERTIFICATE = "CERTIFICATE";
+
 	private PemObject pemObject;
-	
-	public PemFile (Key key, String description) {
+
+	public PemFileManager(Key key, String description) {
 		this.pemObject = new PemObject(description, key.getEncoded());
 	}
 	
@@ -33,6 +34,36 @@ public class PemFile {
 			pemWriter.close();
 		}
 	}
+
+	public static void pemExport(String path, String pemType, byte[] bytes) throws PemFileManagerException {
+
+		File file = new File(path);
+		if (file.exists()) {
+			if (!file.delete()) {
+				throw new PemFileManagerException("deleted the file unsuccessfully");
+			}
+		} else {
+			File dir = new File(file.getParent());
+			if (!dir.exists()) {
+				if (!dir.mkdirs()) {
+					throw new PemFileManagerException("made dir failed in method newCA");
+				}
+			}
+		}
+
+		try {
+			if (!file.createNewFile()) {
+				throw new PemFileManagerException("created new file unsuccessfully");
+			}
+			PemWriter pemWriter = new PemWriter(new OutputStreamWriter(new FileOutputStream(file)));
+			PemObject pemObject = new PemObject(pemType, bytes);
+			pemWriter.writeObject(pemObject);
+			pemWriter.close();
+		} catch (Exception e) {
+			throw new PemFileManagerException("An error occurred on Util.pemExport :" + e.getMessage());
+		}
+	}
+
 
 	/**
 	 *

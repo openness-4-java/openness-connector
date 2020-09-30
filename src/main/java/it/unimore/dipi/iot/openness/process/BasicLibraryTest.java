@@ -2,7 +2,7 @@ package it.unimore.dipi.iot.openness.process;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.unimore.dipi.iot.openness.dto.ApplicationAuthenticationRequest;
-import it.unimore.dipi.iot.openness.utils.PemFile;
+import it.unimore.dipi.iot.openness.utils.PemFileManager;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
@@ -25,9 +25,9 @@ import java.security.*;
  * @project openness-connector
  * @created 24/09/2020 - 12:39
  */
-public class Test {
+public class BasicLibraryTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(Test.class);
+    private static final Logger logger = LoggerFactory.getLogger(BasicLibraryTest.class);
 
     public static void main(String[] args) {
 
@@ -51,8 +51,8 @@ public class Test {
 
             //KeyPair readKeyPair  = PemFile.readKeyPair("certs/id_ec", null);
 
-            PrivateKey privateKey = PemFile.loadPrivateKey("certs/id_ec");
-            PublicKey publicKey = PemFile.loadPublicKey("certs/id_ec.pub");
+            PrivateKey privateKey = PemFileManager.loadPrivateKey("certs/id_ec");
+            PublicKey publicKey = PemFileManager.loadPublicKey("certs/id_ec.pub");
 
             logger.info("Initial Private: {}", priv.getEncoded());
             logger.info("Initial Public: {}", pub.getEncoded());
@@ -99,8 +99,8 @@ public class Test {
 
     private static void writePemFile(Key key, String description, String filename) throws FileNotFoundException, IOException {
 
-        PemFile pemFile = new PemFile(key, description);
-        pemFile.write(filename);
+        PemFileManager pemFileManager = new PemFileManager(key, description);
+        pemFileManager.write(filename);
 
         logger.info(String.format("%s successfully writen in file %s.", description, filename));
     }
