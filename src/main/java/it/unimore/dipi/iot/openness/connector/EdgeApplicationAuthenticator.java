@@ -21,7 +21,6 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * @author Marco Picone, Ph.D. - picone.m@gmail.com
