@@ -3,7 +3,10 @@ package it.unimore.dipi.iot.openness.connector;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.unimore.dipi.iot.openness.dto.ApplicationAuthenticationRequest;
 import it.unimore.dipi.iot.openness.dto.ApplicationAuthenticationResponse;
+import it.unimore.dipi.iot.openness.exception.CommandLineException;
 import it.unimore.dipi.iot.openness.exception.EdgeApplicationAuthenticatorException;
+import it.unimore.dipi.iot.openness.utils.CommandLineExecutor;
+import it.unimore.dipi.iot.openness.utils.LinuxCliExecutor;
 import it.unimore.dipi.iot.openness.utils.PemFileManager;
 import okhttp3.*;
 import org.bouncycastle.operator.ContentSigner;
@@ -18,8 +21,15 @@ import org.slf4j.LoggerFactory;
 
 import javax.security.auth.x500.X500Principal;
 import java.io.*;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.security.*;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -267,6 +277,61 @@ public class EdgeApplicationAuthenticator {
         //return UUID.fromString(String.format("%s%s", applicationId, organizationName)).toString();
     }
 
+    public void generateJavaSecurityFiles(String storePassword,
+                                           String domainAlias,
+                                           String clientCertificateFilePath,
+                                           String clientPrivateKey,
+                                           String caCertificateFilePath,
+                                           String trustStoreOutputFilePath,
+                                           String clientChainCertificateOutputFilePath,
+                                           String keyStoreOutputFilePath,
+                                           String appId) throws CommandLineException, EdgeApplicationAuthenticatorException, IOException {
+
+        CommandLineExecutor commandLineExecutor = new LinuxCliExecutor();
+
+        //Add CA Certificate to Java TrustStore
+        String caTrustStoreCommand = String.format("keytool -noprompt -importcert -storetype jks -alias %s -keystore %s -file %s -storepass changeit", domainAlias, trustStoreOutputFilePath, caCertificateFilePath);
+        if(commandLineExecutor.executeCommand(caTrustStoreCommand) != 0)
+            throw new EdgeApplicationAuthenticatorException(String.format("Error generating Java TrustStore with command: %s", caTrustStoreCommand));
+
+        //Add Client Certificates to Java KeyStore
+        //String combinedCertificate = String.format("cat %s %s %s > %s", caCertificateFilePath, clientCertificateFilePath, clientPrivateKey, clientChainCertificateOutputFilePath);
+        //if(commandLineExecutor.executeCommand(combinedCertificate) != 0);
+        //throw new EdgeApplicationAuthenticatorException(String.format("Error generating Client Certificate Chain with command: %s", combinedCertificate));
+
+        mergeClientFiles(caCertificateFilePath, clientCertificateFilePath, clientPrivateKey, clientChainCertificateOutputFilePath);
+
+        //Create PKCS12 Java KeyStore File
+        String keystoreCommand = String.format("openssl pkcs12 -export -in %s -out %s -password pass:%s -name %s -noiter -nomaciter", clientChainCertificateOutputFilePath, keyStoreOutputFilePath, storePassword, appId);
+        if(commandLineExecutor.executeCommand(keystoreCommand) != 0)
+            throw new EdgeApplicationAuthenticatorException(String.format("Error generating Java KeyStore with command: %s", keystoreCommand));
+    }
+
+    private void mergeClientFiles(String caCertificateFilePath,
+                                  String clientCertificateFilePath,
+                                  String clientPrivateKey,
+                                  String clientChainCertificateOutputFilePath) throws IOException {
+
+        // Input files
+        List<Path> inputs = Arrays.asList(
+                Paths.get(caCertificateFilePath),
+                Paths.get(clientCertificateFilePath),
+                Paths.get(clientPrivateKey)
+        );
+
+        // Output file
+        Path output = Paths.get(clientChainCertificateOutputFilePath);
+
+        // Charset for read and write
+        Charset charset = StandardCharsets.UTF_8;
+
+        // Join files (lines)
+        for (Path path : inputs) {
+            List<String> lines = Files.readAllLines(path, charset);
+            Files.write(output, lines, charset, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        }
+    }
+
     private static String bytesToHex(byte[] bytes) {
         StringBuilder sb = new StringBuilder();
         for (byte b : bytes) {
@@ -288,10 +353,29 @@ public class EdgeApplicationAuthenticator {
             logger.info("Testing EdgeApplicationAuthenticator ....");
 
             EdgeApplicationAuthenticator edgeApplicationAuthenticator = new EdgeApplicationAuthenticator();
-            edgeApplicationAuthenticator.init(OPENNESS_CONTROLLER_BASE_URL);
-            edgeApplicationAuthenticator.authenticateApplication("authTestConnector", "DIPI-UniMore");
+            //edgeApplicationAuthenticator.init(OPENNESS_CONTROLLER_BASE_URL);
+            //edgeApplicationAuthenticator.authenticateApplication("authTestConnector", "DIPI-UniMore");
 
-        } catch (EdgeApplicationAuthenticatorException e) {
+            String storePassword = "changeit";
+            String domainAlias = "eaa.openness";
+            String clientCertificateFilePath = "certs/9de46fe885a6ca9a92cef5678751b5e4aa10045c4696efb365549dd86394d59b.crt";
+            String clientPrivateKey = "certs/id_ec";
+            String caCertificateFilePath = "certs/9de46fe885a6ca9a92cef5678751b5e4aa10045c4696efb365549dd86394d59b_ca_chain.crt";
+            String trustStoreOutputFilePath = "certs/test.ca.jks";
+            String clientChainCertificateOutputFilePath = "certs/test.client.chain.crt";
+            String keyStoreOutputFilePath = "certs/test.client.chain.p12";
+
+            edgeApplicationAuthenticator.generateJavaSecurityFiles(storePassword,
+                    domainAlias,
+                    clientCertificateFilePath,
+                    clientPrivateKey,
+                    caCertificateFilePath,
+                    trustStoreOutputFilePath,
+                    clientChainCertificateOutputFilePath,
+                    keyStoreOutputFilePath,
+                    "TestUniMoreClientApp");
+
+        } catch (CommandLineException | EdgeApplicationAuthenticatorException | IOException e) {
             e.printStackTrace();
         }
     }

@@ -50,6 +50,19 @@ public class EdgeApplicationConnector {
             this.objectMapper = new ObjectMapper();
             this.controllerApiEndpoint = controllerApiEndpoint;
 
+
+            SSLContext sslContext = SSLContexts.custom()
+                    .loadKeyMaterial(
+                            new File("certs/test.client.chain.p12"),
+                            "changeit".toCharArray(),
+                            "changeit".toCharArray()
+                    )
+                    .loadTrustMaterial(
+                            new File("certs/test.ca.jks")
+                    )
+                    .build();
+
+            /*
             SSLContext sslContext = SSLContexts.custom()
                     .loadKeyMaterial(
                             new File("example.client.chain.p12"),
@@ -60,6 +73,7 @@ public class EdgeApplicationConnector {
                             new File("example.ca.jks")
                     )
                     .build();
+            */
 
             httpClient = HttpClients.custom()
                     .setSSLContext(sslContext)
