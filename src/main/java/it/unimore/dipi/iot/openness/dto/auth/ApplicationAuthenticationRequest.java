@@ -1,4 +1,4 @@
-package it.unimore.dipi.iot.openness.dto;
+package it.unimore.dipi.iot.openness.dto.auth;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

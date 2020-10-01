@@ -1,10 +1,11 @@
 package it.unimore.dipi.iot.openness.connector;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
+import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceList;
 import it.unimore.dipi.iot.openness.exception.EdgeApplicationConnectorException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContexts;
@@ -13,17 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import javax.net.ssl.SSLContext;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
-import java.util.Arrays;
-import java.util.Collections;
 
 /**
  * @author Marco Picone, Ph.D. - picone.m@gmail.com
@@ -36,21 +26,32 @@ public class EdgeApplicationConnector {
 
     private static CloseableHttpClient httpClient;
 
-    private String controllerApiEndpoint = null;
+    private AuthorizedApplicationConfiguration authorizedApplicationConfiguration;
 
-    private ObjectMapper objectMapper = null;
+    private ObjectMapper objectMapper;
 
-    public EdgeApplicationConnector(){
-    }
+    private String edgeApplicationServiceEndpoint;
 
-    public void init(String controllerApiEndpoint) throws EdgeApplicationConnectorException {
+    public EdgeApplicationConnector(String edgeApplicationServiceEndpoint, AuthorizedApplicationConfiguration authorizedApplicationConfiguration) throws EdgeApplicationConnectorException {
 
         try{
 
+            this.edgeApplicationServiceEndpoint = edgeApplicationServiceEndpoint;
+            this.authorizedApplicationConfiguration = authorizedApplicationConfiguration;
             this.objectMapper = new ObjectMapper();
-            this.controllerApiEndpoint = controllerApiEndpoint;
 
+            SSLContext sslContext = SSLContexts.custom()
+                    .loadKeyMaterial(
+                            new File(this.authorizedApplicationConfiguration.getKeyStoreFilePath()),
+                            this.authorizedApplicationConfiguration.getStorePassword().toCharArray(),
+                            this.authorizedApplicationConfiguration.getStorePassword().toCharArray()
+                    )
+                    .loadTrustMaterial(
+                            new File(this.authorizedApplicationConfiguration.getTrustStoreFilePath())
+                    )
+                    .build();
 
+            /*
             SSLContext sslContext = SSLContexts.custom()
                     .loadKeyMaterial(
                             new File("certs/test.client.chain.p12"),
@@ -59,18 +60,6 @@ public class EdgeApplicationConnector {
                     )
                     .loadTrustMaterial(
                             new File("certs/test.ca.jks")
-                    )
-                    .build();
-
-            /*
-            SSLContext sslContext = SSLContexts.custom()
-                    .loadKeyMaterial(
-                            new File("example.client.chain.p12"),
-                            "changeit".toCharArray(),
-                            "changeit".toCharArray()
-                    )
-                    .loadTrustMaterial(
-                            new File("example.ca.jks")
                     )
                     .build();
             */
@@ -84,12 +73,11 @@ public class EdgeApplicationConnector {
         }
     }
 
-
-    public void getAvailableServices() throws EdgeApplicationConnectorException {
+    public EdgeApplicationServiceList getAvailableServices() throws EdgeApplicationConnectorException {
 
         try{
 
-            String targetUrl = String.format("%sservices", this.controllerApiEndpoint);
+            String targetUrl = String.format("%sservices", this.edgeApplicationServiceEndpoint);
 
             logger.debug("Get Service List - Target Url: {}", targetUrl);
 
@@ -97,56 +85,43 @@ public class EdgeApplicationConnector {
 
             CloseableHttpResponse response = httpClient.execute(getServiceList);
 
-            if(response != null ){
+            if(response != null && response.getStatusLine().getStatusCode() == 200){
 
                 String bodyString = EntityUtils.toString(response.getEntity());
 
-                logger.info("Application Authentication Response Code: {}", response.getStatusLine().getStatusCode());
-                logger.info("Response Body: {}", bodyString);
+                logger.debug("Application Authentication Response Code: {}", response.getStatusLine().getStatusCode());
+                logger.debug("Response Body: {}", bodyString);
+
+                return objectMapper.readValue(bodyString, EdgeApplicationServiceList.class);
 
             }
-            else
-                logger.error("NULL Response Received !");
+            else {
+                logger.error("Wrong Response Received !");
+                throw new EdgeApplicationConnectorException(String.format("Error retrieving Service List ! Status Code: %d -> Response Body: %s",
+                        response != null ? response.getStatusLine().getStatusCode() : -1,
+                        response != null ? EntityUtils.toString(response.getEntity()) : null));
+            }
 
         }catch (Exception e){
-
-            e.printStackTrace();
-
             String errorMsg = String.format("Error Authenticating Application ! Error: %s", e.getLocalizedMessage());
             logger.error(errorMsg);
             throw new EdgeApplicationConnectorException(errorMsg);
         }
     }
 
+    public AuthorizedApplicationConfiguration getAuthorizedApplicationConfiguration() {
+        return authorizedApplicationConfiguration;
+    }
 
-    public static void main(String[] args) throws IOException, UnrecoverableKeyException, CertificateException, NoSuchAlgorithmException, KeyStoreException, KeyManagementException {
+    public void setAuthorizedApplicationConfiguration(AuthorizedApplicationConfiguration authorizedApplicationConfiguration) {
+        this.authorizedApplicationConfiguration = authorizedApplicationConfiguration;
+    }
 
+    public String getEdgeApplicationServiceEndpoint() {
+        return edgeApplicationServiceEndpoint;
+    }
 
-        try {
-
-            //-Djavax.net.ssl.trustStore=example.ca.jks -Djavax.net.ssl.keyStore=example.client.chain.p12 -Djavax.net.ssl.keyStoreType=pkcs12 -Djavax.net.ssl.keyStorePassword=changeit
-
-            //System.setProperty("javax.net.ssl.trustStore", "certs/9de46fe885a6ca9a92cef5678751b5e4aa10045c4696efb365549dd86394d59b.crt");
-            //System.setProperty("javax.net.ssl.keyStore", "certs/id_ec");
-
-            //System.setProperty("javax.net.debug","all");
-            //System.setProperty("javax.net.ssl.trustStore", "example.ca.jks");
-            //System.setProperty("javax.net.ssl.keyStore", "example.client.chain.p12");
-            //System.setProperty("javax.net.ssl.keyStoreType", "pkcs12");
-            //System.setProperty("javax.net.ssl.keyStorePassword", "changeit");
-
-            String OPENNESS_CONTROLLER_BASE_URL = "https://eaa.openness:7443/";
-
-            logger.info("Testing EdgeApplicationAuthenticator ....");
-
-            EdgeApplicationConnector edgeApplicationConnector = new EdgeApplicationConnector();
-            edgeApplicationConnector.init(OPENNESS_CONTROLLER_BASE_URL);
-            edgeApplicationConnector.getAvailableServices();
-
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
+    public void setEdgeApplicationServiceEndpoint(String edgeApplicationServiceEndpoint) {
+        this.edgeApplicationServiceEndpoint = edgeApplicationServiceEndpoint;
     }
 }

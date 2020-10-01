@@ -1,7 +1,7 @@
-package it.unimore.dipi.iot.openness.process;
+package it.unimore.dipi.iot.openness.test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import it.unimore.dipi.iot.openness.dto.ApplicationAuthenticationRequest;
+import it.unimore.dipi.iot.openness.dto.auth.ApplicationAuthenticationRequest;
 import it.unimore.dipi.iot.openness.utils.PemFileManager;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;

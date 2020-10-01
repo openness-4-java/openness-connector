@@ -1,10 +1,12 @@
 package it.unimore.dipi.iot.openness.connector;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import it.unimore.dipi.iot.openness.dto.ApplicationAuthenticationRequest;
-import it.unimore.dipi.iot.openness.dto.ApplicationAuthenticationResponse;
+import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
+import it.unimore.dipi.iot.openness.dto.auth.ApplicationAuthenticationRequest;
+import it.unimore.dipi.iot.openness.dto.auth.ApplicationAuthenticationResponse;
 import it.unimore.dipi.iot.openness.exception.CommandLineException;
 import it.unimore.dipi.iot.openness.exception.EdgeApplicationAuthenticatorException;
+import it.unimore.dipi.iot.openness.utils.AuthenticatorFileUtils;
 import it.unimore.dipi.iot.openness.utils.CommandLineExecutor;
 import it.unimore.dipi.iot.openness.utils.LinuxCliExecutor;
 import it.unimore.dipi.iot.openness.utils.PemFileManager;
@@ -41,13 +43,17 @@ public class EdgeApplicationAuthenticator {
 
     private static final Logger logger = LoggerFactory.getLogger(EdgeApplicationAuthenticator.class);
 
-    public static final String OPENNESS_CONTROLLER_BASE_URL = "http://127.0.0.1:7080/auth";
+    private String JAVA_STORE_PASSWORD = "changeit";
 
-    private static final String PRIVATE_KEY_FILE_PATH = "certs/id_ec";
+    private String DOMAIN_ALIAS = "eaa.openness";
 
-    private static final String PUBLIC_KEY_FILE_PATH = "certs/id_ec.pub";
+    private String AUTH_API_RESOURCE = "auth";
 
-    private static final String CERT_BASE_FOLDER = "certs/";
+    private String controllerApiEndpoint = null;
+
+    //private static final String PRIVATE_KEY_FILE_PATH = "certs/id_ec";
+
+    //private static final String PUBLIC_KEY_FILE_PATH = "certs/id_ec.pub";
 
     private OkHttpClient httpClient = null;
 
@@ -55,43 +61,24 @@ public class EdgeApplicationAuthenticator {
 
     private KeyPair keyPair = null;
 
-    public EdgeApplicationAuthenticator(){
+    public EdgeApplicationAuthenticator(String controllerApiEndpoint){
+        this.controllerApiEndpoint = controllerApiEndpoint;
         this.httpClient = new OkHttpClient();
         this.objectMapper = new ObjectMapper();
     }
 
-    public void init(String controllerApiEndpoint) throws EdgeApplicationAuthenticatorException {
-
-        if(controllerApiEndpoint != null){
-
-            //Read local KeyPair
-            Optional<KeyPair> localKeyPair = readLocalKeyPair();
-
-            if(localKeyPair.isPresent()){
-                logger.info("Local KeyPair correctly loaded ! Public File: {} and Private File: {}", PUBLIC_KEY_FILE_PATH, PRIVATE_KEY_FILE_PATH);
-                this.keyPair = localKeyPair.get();
-            }
-            else {
-                logger.warn("Local KeyPair not available or existing ! Generating a new KeyPair ....");
-                generateNewKeyPair();
-            }
-        }
-        else
-            throw new EdgeApplicationAuthenticatorException("OpenNess Controller Endpoint = null !");
-    }
-
-    private void generateNewKeyPair() throws EdgeApplicationAuthenticatorException {
+    private void generateNewKeyPair(String applicationUniqueIdentifier) throws EdgeApplicationAuthenticatorException {
 
         try{
 
             KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC");
             KeyPair pair = keyGen.generateKeyPair();
 
-            PrivateKey priv = pair.getPrivate();
-            PublicKey pub = pair.getPublic();
+            PrivateKey privateKey = pair.getPrivate();
+            PublicKey publicKey = pair.getPublic();
 
-            writePemFile(priv, "PRIVATE KEY", PRIVATE_KEY_FILE_PATH);
-            writePemFile(pub, "PUBLIC KEY", PUBLIC_KEY_FILE_PATH);
+            writePemFile(privateKey, "PRIVATE KEY", AuthenticatorFileUtils.getPrivateKeyFilePath(applicationUniqueIdentifier));
+            writePemFile(publicKey, "PUBLIC KEY", AuthenticatorFileUtils.getPublicKeyFilePath(applicationUniqueIdentifier));
 
             this.keyPair = pair;
 
@@ -102,20 +89,20 @@ public class EdgeApplicationAuthenticator {
         }
     }
 
-    private static void writePemFile(Key key, String description, String filename) throws FileNotFoundException, IOException {
+    private static void writePemFile(Key key, String description, String filename) throws IOException {
 
         PemFileManager pemFileManager = new PemFileManager(key, description);
         pemFileManager.write(filename);
 
-        logger.info(String.format("%s successfully writen in file %s.", description, filename));
+        logger.info(String.format("%s successfully written in file %s.", description, filename));
     }
 
-    private Optional<KeyPair> readLocalKeyPair(){
+    private Optional<KeyPair> readLocalKeyPair(String applicationUniqueIdentifier){
 
         try{
 
-            PrivateKey privateKey = PemFileManager.loadPrivateKey(PRIVATE_KEY_FILE_PATH);
-            PublicKey publicKey = PemFileManager.loadPublicKey(PUBLIC_KEY_FILE_PATH);
+            PrivateKey privateKey = PemFileManager.loadPrivateKey(AuthenticatorFileUtils.getPrivateKeyFilePath(applicationUniqueIdentifier));
+            PublicKey publicKey = PemFileManager.loadPublicKey(AuthenticatorFileUtils.getPublicKeyFilePath(applicationUniqueIdentifier));
 
             if(privateKey != null && publicKey != null){
                 //logger.debug("Read Private: {}", privateKey.getEncoded());
@@ -123,7 +110,7 @@ public class EdgeApplicationAuthenticator {
                 return Optional.of(new KeyPair(publicKey, privateKey));
             }
             else {
-                logger.error("Error Loading existing KeyPair ! {} and/or {} are null", PRIVATE_KEY_FILE_PATH, PUBLIC_KEY_FILE_PATH);
+                logger.error("Error Loading existing KeyPair ! Null values !");
                 return Optional.empty();
             }
 
@@ -165,24 +152,43 @@ public class EdgeApplicationAuthenticator {
 
     }
 
-    public void authenticateApplication(String applicationId, String organizationName) throws EdgeApplicationAuthenticatorException {
+    private void checkApplicationKeyPair(String applicationUniqueIdentifier) throws EdgeApplicationAuthenticatorException {
 
-        if(this.keyPair == null)
-            throw new EdgeApplicationAuthenticatorException("KeyPair not avaible ! Check EdgeApplicationAuthenticator init procedure ...");
+        //Read local KeyPair
+        Optional<KeyPair> localKeyPair = readLocalKeyPair(applicationUniqueIdentifier);
+
+        if(localKeyPair.isPresent()){
+            logger.info("Local KeyPair correctly loaded ! Public File: {} and Private File: {}", AuthenticatorFileUtils.getPublicKeyFilePath(applicationUniqueIdentifier), AuthenticatorFileUtils.getPrivateKeyFilePath(applicationUniqueIdentifier));
+            this.keyPair = localKeyPair.get();
+        }
+        else {
+            logger.warn("Local KeyPair not available or existing ! Generating a new KeyPair ....");
+            generateNewKeyPair(applicationUniqueIdentifier);
+        }
+    }
+
+    public AuthorizedApplicationConfiguration authenticateApplication(String applicationId, String organizationName) throws EdgeApplicationAuthenticatorException {
+
+        if(this.controllerApiEndpoint == null)
+            throw new EdgeApplicationAuthenticatorException("Invalid OpenNess Controller Endpoint ! Null Endpoint provided !");
 
         if(httpClient == null)
             throw new EdgeApplicationAuthenticatorException("Error ! HTTP Client = Null !");
 
-        Optional<String> csrString = generateCertificateSigningRequest(organizationName, applicationId);
-
-        if(!csrString.isPresent())
-            throw new EdgeApplicationAuthenticatorException("Error Generating Certificate Signing Request !");
-
-        //Create ApplicationAuthenticationRequest
-        ApplicationAuthenticationRequest applicationAuthenticationRequest = new ApplicationAuthenticationRequest();
-        applicationAuthenticationRequest.setCertificateSigningRequest(csrString.get());
-
         try{
+
+            String applicationUniqueIdentifier = generateApplicationUniqueIdentifier(applicationId, organizationName);
+
+            checkApplicationKeyPair(applicationUniqueIdentifier);
+
+            Optional<String> csrString = generateCertificateSigningRequest(organizationName, applicationId);
+
+            if(!csrString.isPresent())
+                throw new EdgeApplicationAuthenticatorException("Error Generating Certificate Signing Request !");
+
+            //Create ApplicationAuthenticationRequest
+            ApplicationAuthenticationRequest applicationAuthenticationRequest = new ApplicationAuthenticationRequest();
+            applicationAuthenticationRequest.setCertificateSigningRequest(csrString.get());
 
             String jsonBody = objectMapper.writeValueAsString(applicationAuthenticationRequest);
 
@@ -195,7 +201,7 @@ public class EdgeApplicationAuthenticator {
 
             //Create POST Request
             Request request = new Request.Builder()
-                    .url(OPENNESS_CONTROLLER_BASE_URL)
+                    .url(this.controllerApiEndpoint+AUTH_API_RESOURCE)
                     .post(body)
                     .build();
 
@@ -209,7 +215,35 @@ public class EdgeApplicationAuthenticator {
                 logger.info("Application Authentication Response Code: {}", response.code());
                 logger.info("Response Body: {}", bodyString);
 
-                handleAuthenticationResponse(generateCertificateFileIdString(applicationId, organizationName), bodyString);
+                String clientCertificateFilePath = AuthenticatorFileUtils.getClientCertificateFilePath(applicationUniqueIdentifier);
+                String caChainFilePath = AuthenticatorFileUtils.getCaChainFilePath(applicationUniqueIdentifier);
+                String caPoolFilePath = AuthenticatorFileUtils.getCaPoolFilePath(applicationUniqueIdentifier);
+
+                //Handle Authentication Response
+                handleAuthenticationResponse(bodyString, clientCertificateFilePath, caChainFilePath, caPoolFilePath);
+
+                //Generate Java TrustStore and KeyStore management files
+                String trustStoreOutputFilePath = AuthenticatorFileUtils.getTrustStoreOutputFilePath(applicationUniqueIdentifier);
+                String clientChainCertificateOutputFilePath = AuthenticatorFileUtils.getClientChainOutputFilePath(applicationUniqueIdentifier);
+                String keyStoreOutputFilePath = AuthenticatorFileUtils.getKeyStoreOutputFilePath(applicationUniqueIdentifier);
+
+                generateJavaSecurityFiles(JAVA_STORE_PASSWORD,
+                        DOMAIN_ALIAS,
+                        clientCertificateFilePath,
+                        AuthenticatorFileUtils.getPrivateKeyFilePath(applicationUniqueIdentifier),
+                        caChainFilePath,
+                        trustStoreOutputFilePath,
+                        clientChainCertificateOutputFilePath,
+                        keyStoreOutputFilePath,
+                        String.format("%s%s", applicationId, organizationName));
+
+                return new AuthorizedApplicationConfiguration(applicationUniqueIdentifier,
+                        applicationId,
+                        organizationName,
+                        trustStoreOutputFilePath,
+                        keyStoreOutputFilePath,
+                        this.controllerApiEndpoint,
+                        JAVA_STORE_PASSWORD);
 
                 /*
                 String body = response.body().string();
@@ -223,17 +257,21 @@ public class EdgeApplicationAuthenticator {
                 dataStoreResult.getResult().getWeatherStationList().forEach(weatherStationRecord -> logger.info("Weather Station: {}", weatherStationRecord));
                 */
             }
-            else
-                logger.error("NULL Response Received for request: {}", request);
+            else {
+                String errorMsg = String.format("NULL Response Received for request: %s", request);
+                logger.error(errorMsg);
+                throw new EdgeApplicationAuthenticatorException(errorMsg);
+            }
 
         }catch (Exception e){
+            e.printStackTrace();
             String errorMsg = String.format("Error Authenticating Application ! Error: %s", e.getLocalizedMessage());
             logger.error(errorMsg);
             throw new EdgeApplicationAuthenticatorException(errorMsg);
         }
     }
 
-    private void handleAuthenticationResponse(String certificateUuid, String responseBody) throws EdgeApplicationAuthenticatorException {
+    private void handleAuthenticationResponse(String responseBody, String clientCertificateFilePath, String caChainFilePath, String caPoolFilePath) throws EdgeApplicationAuthenticatorException {
 
         try{
 
@@ -244,7 +282,7 @@ public class EdgeApplicationAuthenticator {
             //PemFileManager.pemExport(String.format("%s%s_ca_pool.crt", CERT_BASE_FOLDER, applicationAuthenticationResponse.getApplicationId()), PemFileManager.PEM_TYPE_CERTIFICATE, applicationAuthenticationResponse.getCaPool().getBytes());
 
             //Save Certificate
-            writeCertificateOnFile(String.format("%s%s.crt", CERT_BASE_FOLDER, certificateUuid), applicationAuthenticationResponse.getCertificate());
+            writeCertificateOnFile(clientCertificateFilePath, applicationAuthenticationResponse.getCertificate());
 
             //Save CA Chain files
             StringBuffer certChainStringBuffer = new StringBuffer();
@@ -252,7 +290,7 @@ public class EdgeApplicationAuthenticator {
                 certChainStringBuffer.append(caCertString);
 
             //Save CA Chain Certificate
-            writeCertificateOnFile(String.format("%s%s_ca_chain.crt", CERT_BASE_FOLDER, certificateUuid), certChainStringBuffer.toString());
+            writeCertificateOnFile(caChainFilePath, certChainStringBuffer.toString());
 
             //Save CA Pool files
             certChainStringBuffer = new StringBuffer();
@@ -260,17 +298,17 @@ public class EdgeApplicationAuthenticator {
                 certChainStringBuffer.append(caCertString);
 
             //Save CA Chain Certificate
-            writeCertificateOnFile(String.format("%s%s_ca_pool.crt", CERT_BASE_FOLDER, certificateUuid), certChainStringBuffer.toString());
+            writeCertificateOnFile(caPoolFilePath, certChainStringBuffer.toString());
 
         } catch (Exception e){
+            e.printStackTrace();
             String errorMsg = String.format("Error Authenticating Application ! Error: %s", e.getLocalizedMessage());
             logger.error(errorMsg);
             throw new EdgeApplicationAuthenticatorException(errorMsg);
         }
-
     }
 
-    private String generateCertificateFileIdString(String applicationId, String organizationName) throws NoSuchAlgorithmException {
+    public static String generateApplicationUniqueIdentifier(String applicationId, String organizationName) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] encodedhash = digest.digest(String.format("%s%s", applicationId, organizationName).getBytes(StandardCharsets.UTF_8));
         return bytesToHex(encodedhash);
@@ -290,7 +328,7 @@ public class EdgeApplicationAuthenticator {
         CommandLineExecutor commandLineExecutor = new LinuxCliExecutor();
 
         //Add CA Certificate to Java TrustStore
-        String caTrustStoreCommand = String.format("keytool -noprompt -importcert -storetype jks -alias %s -keystore %s -file %s -storepass changeit", domainAlias, trustStoreOutputFilePath, caCertificateFilePath);
+        String caTrustStoreCommand = String.format("keytool -noprompt -importcert -storetype jks -alias %s -keystore %s -file %s -storepass %s", domainAlias, trustStoreOutputFilePath, caCertificateFilePath, storePassword);
         if(commandLineExecutor.executeCommand(caTrustStoreCommand) != 0)
             throw new EdgeApplicationAuthenticatorException(String.format("Error generating Java TrustStore with command: %s", caTrustStoreCommand));
 
@@ -327,6 +365,7 @@ public class EdgeApplicationAuthenticator {
 
         // Join files (lines)
         for (Path path : inputs) {
+            logger.debug("Merging File: {}", path.getFileName());
             List<String> lines = Files.readAllLines(path, charset);
             Files.write(output, lines, charset, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         }
@@ -346,24 +385,60 @@ public class EdgeApplicationAuthenticator {
         writer.close();
     }
 
+    public String getControllerApiEndpoint() {
+        return controllerApiEndpoint;
+    }
+
+    public void setControllerApiEndpoint(String controllerApiEndpoint) {
+        this.controllerApiEndpoint = controllerApiEndpoint;
+    }
+
+    public Optional<AuthorizedApplicationConfiguration> loadExistingAuthorizedApplicationConfiguration(String applicationId, String organizationName){
+
+        try{
+
+            String applicationUniqueIdentifier = generateApplicationUniqueIdentifier(applicationId, organizationName);
+
+            if(AuthenticatorFileUtils.isJavaClientAuthenticationFilesAvailable(applicationUniqueIdentifier))
+               return Optional.of(new AuthorizedApplicationConfiguration(
+                       applicationUniqueIdentifier,
+                       applicationId,
+                       organizationName,
+                       AuthenticatorFileUtils.getTrustStoreOutputFilePath(applicationUniqueIdentifier),
+                       AuthenticatorFileUtils.getKeyStoreOutputFilePath(applicationUniqueIdentifier),
+                       this.controllerApiEndpoint,
+                       JAVA_STORE_PASSWORD));
+            else
+                return Optional.empty();
+
+        }catch (Exception e){
+            logger.error("Error Loading Existing AuthorizedApplicationConfiguration !");
+            return Optional.empty();
+        }
+    }
+
     public static void main(String[] args) {
 
         try {
 
             logger.info("Testing EdgeApplicationAuthenticator ....");
 
-            EdgeApplicationAuthenticator edgeApplicationAuthenticator = new EdgeApplicationAuthenticator();
-            //edgeApplicationAuthenticator.init(OPENNESS_CONTROLLER_BASE_URL);
-            //edgeApplicationAuthenticator.authenticateApplication("authTestConnector", "DIPI-UniMore");
 
+            String OPENNESS_CONTROLLER_BASE_URL = "http://127.0.0.1:7080/auth";
+
+            EdgeApplicationAuthenticator edgeApplicationAuthenticator = new EdgeApplicationAuthenticator(OPENNESS_CONTROLLER_BASE_URL);
+            AuthorizedApplicationConfiguration authorizedApplicationConfiguration = edgeApplicationAuthenticator.authenticateApplication("authTestConnector", "DIPIUniMore");
+            logger.info("Authorized Application Configuration: {}", authorizedApplicationConfiguration);
+
+            /*
             String storePassword = "changeit";
             String domainAlias = "eaa.openness";
             String clientCertificateFilePath = "certs/9de46fe885a6ca9a92cef5678751b5e4aa10045c4696efb365549dd86394d59b.crt";
             String clientPrivateKey = "certs/id_ec";
             String caCertificateFilePath = "certs/9de46fe885a6ca9a92cef5678751b5e4aa10045c4696efb365549dd86394d59b_ca_chain.crt";
-            String trustStoreOutputFilePath = "certs/test.ca.jks";
-            String clientChainCertificateOutputFilePath = "certs/test.client.chain.crt";
-            String keyStoreOutputFilePath = "certs/test.client.chain.p12";
+            String trustStoreOutputFilePath = "certs/test2.ca.jks";
+            String clientChainCertificateOutputFilePath = "certs/test2.client.chain.crt";
+            String keyStoreOutputFilePath = "certs/test2.client.chain.p12";
 
             edgeApplicationAuthenticator.generateJavaSecurityFiles(storePassword,
                     domainAlias,
@@ -374,8 +449,9 @@ public class EdgeApplicationAuthenticator {
                     clientChainCertificateOutputFilePath,
                     keyStoreOutputFilePath,
                     "TestUniMoreClientApp");
+            */
 
-        } catch (CommandLineException | EdgeApplicationAuthenticatorException | IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

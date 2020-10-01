@@ -1,4 +1,4 @@
-package it.unimore.dipi.iot.openness.process;
+package it.unimore.dipi.iot.openness.test;
 
 import java.io.File;
 import java.io.FileInputStream;

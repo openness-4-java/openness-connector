@@ -82,3 +82,9 @@ keytool -list -keystore example.client.chain.p12 -storepass changeit
 ```bash
 openssl pkcs12 -export -in certs/9de46fe885a6ca9a92cef5678751b5e4aa10045c4696efb365549dd86394d59b.crt -inkey certs/id_ec -out example.client.chain.p12 -name "DIPI-UniMore" -certfile certs/9de46fe885a6ca9a92cef5678751b5e4aa10045c4696efb365549dd86394d59b_ca_chain.crt
 ```
+
+## Apache HTTP Library - References
+
+Examples and Tutorials:
+
+- Apache Http Client Examples - https://mkyong.com/java/apache-httpclient-examples/
