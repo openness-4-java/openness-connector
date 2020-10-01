@@ -28,7 +28,7 @@ public class OpenNessConnectorTester {
             String applicationId = "OpenNessConnectorTester";
             String organizationName =  "DIPIUniMore";
 
-            AuthorizedApplicationConfiguration authorizedApplicationConfiguration = null;
+            AuthorizedApplicationConfiguration authorizedApplicationConfiguration;
 
             EdgeApplicationAuthenticator edgeApplicationAuthenticator = new EdgeApplicationAuthenticator(OPENNESS_CONTROLLER_BASE_AUTH_URL);
 

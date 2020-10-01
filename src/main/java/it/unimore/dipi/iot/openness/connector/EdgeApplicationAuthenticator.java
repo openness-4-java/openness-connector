@@ -4,13 +4,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
 import it.unimore.dipi.iot.openness.dto.auth.ApplicationAuthenticationRequest;
 import it.unimore.dipi.iot.openness.dto.auth.ApplicationAuthenticationResponse;
+import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceList;
 import it.unimore.dipi.iot.openness.exception.CommandLineException;
 import it.unimore.dipi.iot.openness.exception.EdgeApplicationAuthenticatorException;
+import it.unimore.dipi.iot.openness.exception.EdgeApplicationConnectorException;
 import it.unimore.dipi.iot.openness.utils.AuthenticatorFileUtils;
 import it.unimore.dipi.iot.openness.utils.CommandLineExecutor;
 import it.unimore.dipi.iot.openness.utils.LinuxCliExecutor;
 import it.unimore.dipi.iot.openness.utils.PemFileManager;
-import okhttp3.*;
+import okhttp3.RequestBody;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
@@ -51,11 +60,7 @@ public class EdgeApplicationAuthenticator {
 
     private String controllerApiEndpoint = null;
 
-    //private static final String PRIVATE_KEY_FILE_PATH = "certs/id_ec";
-
-    //private static final String PUBLIC_KEY_FILE_PATH = "certs/id_ec.pub";
-
-    private OkHttpClient httpClient = null;
+    private static CloseableHttpClient httpClient;
 
     private ObjectMapper objectMapper = null;
 
@@ -63,8 +68,10 @@ public class EdgeApplicationAuthenticator {
 
     public EdgeApplicationAuthenticator(String controllerApiEndpoint){
         this.controllerApiEndpoint = controllerApiEndpoint;
-        this.httpClient = new OkHttpClient();
         this.objectMapper = new ObjectMapper();
+        this.httpClient = HttpClients.custom()
+                .build();
+
     }
 
     private void generateNewKeyPair(String applicationUniqueIdentifier) throws EdgeApplicationAuthenticatorException {
@@ -105,8 +112,6 @@ public class EdgeApplicationAuthenticator {
             PublicKey publicKey = PemFileManager.loadPublicKey(AuthenticatorFileUtils.getPublicKeyFilePath(applicationUniqueIdentifier));
 
             if(privateKey != null && publicKey != null){
-                //logger.debug("Read Private: {}", privateKey.getEncoded());
-                //logger.debug("Read Public: {}", publicKey.getEncoded());
                 return Optional.of(new KeyPair(publicKey, privateKey));
             }
             else {
@@ -194,25 +199,16 @@ public class EdgeApplicationAuthenticator {
 
             logger.debug("OpenNess Auth JsonBody: {}", jsonBody);
 
-            //Create JSON Body
-            RequestBody body = RequestBody.create(
-                    MediaType.parse("application/json"),
-                    jsonBody);
+            HttpPost authPost = new HttpPost(this.controllerApiEndpoint+AUTH_API_RESOURCE);
+            authPost.setEntity(new StringEntity(jsonBody));
 
-            //Create POST Request
-            Request request = new Request.Builder()
-                    .url(this.controllerApiEndpoint+AUTH_API_RESOURCE)
-                    .post(body)
-                    .build();
+            CloseableHttpResponse response = httpClient.execute(authPost);
 
-            Call call = this.httpClient.newCall(request);
-            Response response = call.execute();
+            if(response != null){
 
-            if(response != null ){
+                String bodyString = EntityUtils.toString(response.getEntity());
 
-                String bodyString = response.body().string();
-
-                logger.info("Application Authentication Response Code: {}", response.code());
+                logger.info("Application Authentication Response Code: {}", response.getStatusLine().getStatusCode());
                 logger.info("Response Body: {}", bodyString);
 
                 String clientCertificateFilePath = AuthenticatorFileUtils.getClientCertificateFilePath(applicationUniqueIdentifier);
@@ -245,20 +241,9 @@ public class EdgeApplicationAuthenticator {
                         this.controllerApiEndpoint,
                         JAVA_STORE_PASSWORD);
 
-                /*
-                String body = response.body().string();
-
-                logger.info("Received Response Code: {} -> Body: {}", response.code(), body);
-
-                DataStoreResponse<DataStoreWeatherStationResult> dataStoreResult = new ObjectMapper()
-                        .readerFor(new TypeReference<DataStoreResponse<DataStoreWeatherStationResult>>() {})
-                        .readValue(body);
-
-                dataStoreResult.getResult().getWeatherStationList().forEach(weatherStationRecord -> logger.info("Weather Station: {}", weatherStationRecord));
-                */
             }
             else {
-                String errorMsg = String.format("NULL Response Received for request: %s", request);
+                String errorMsg = String.format("Error Authenticating Application ! Response Body: NULL !");
                 logger.error(errorMsg);
                 throw new EdgeApplicationAuthenticatorException(errorMsg);
             }
@@ -276,10 +261,6 @@ public class EdgeApplicationAuthenticator {
         try{
 
             ApplicationAuthenticationResponse applicationAuthenticationResponse = objectMapper.readValue(responseBody, ApplicationAuthenticationResponse.class);
-
-            //PemFileManager.pemExport(String.format("%s%s.crt", CERT_BASE_FOLDER, applicationAuthenticationResponse.getApplicationId()), PemFileManager.PEM_TYPE_CERTIFICATE, applicationAuthenticationResponse.getCertificate().getBytes());
-            //PemFileManager.pemExport(String.format("%s%s_ca_chain.crt", CERT_BASE_FOLDER, applicationAuthenticationResponse.getApplicationId()), PemFileManager.PEM_TYPE_CERTIFICATE, applicationAuthenticationResponse.getCaChain().getBytes());
-            //PemFileManager.pemExport(String.format("%s%s_ca_pool.crt", CERT_BASE_FOLDER, applicationAuthenticationResponse.getApplicationId()), PemFileManager.PEM_TYPE_CERTIFICATE, applicationAuthenticationResponse.getCaPool().getBytes());
 
             //Save Certificate
             writeCertificateOnFile(clientCertificateFilePath, applicationAuthenticationResponse.getCertificate());
@@ -327,12 +308,18 @@ public class EdgeApplicationAuthenticator {
 
         CommandLineExecutor commandLineExecutor = new LinuxCliExecutor();
 
+        //Remove Already Existing Java TrustStore File
+        String removeExistingKeyStore = String.format("rm -f %s", trustStoreOutputFilePath);
+        if(commandLineExecutor.executeCommand(removeExistingKeyStore) != 0)
+            throw new EdgeApplicationAuthenticatorException(String.format("Error generating Java TrustStore with command: %s", removeExistingKeyStore));
+
         //Add CA Certificate to Java TrustStore
         String caTrustStoreCommand = String.format("keytool -noprompt -importcert -storetype jks -alias %s -keystore %s -file %s -storepass %s", domainAlias, trustStoreOutputFilePath, caCertificateFilePath, storePassword);
         if(commandLineExecutor.executeCommand(caTrustStoreCommand) != 0)
             throw new EdgeApplicationAuthenticatorException(String.format("Error generating Java TrustStore with command: %s", caTrustStoreCommand));
 
         //Add Client Certificates to Java KeyStore
+        //The command line solution has a problem with the standard output redirect. A native Java solution has been added
         //String combinedCertificate = String.format("cat %s %s %s > %s", caCertificateFilePath, clientCertificateFilePath, clientPrivateKey, clientChainCertificateOutputFilePath);
         //if(commandLineExecutor.executeCommand(combinedCertificate) != 0);
         //throw new EdgeApplicationAuthenticatorException(String.format("Error generating Client Certificate Chain with command: %s", combinedCertificate));
