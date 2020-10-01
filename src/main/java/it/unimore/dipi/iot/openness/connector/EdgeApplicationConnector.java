@@ -51,19 +51,6 @@ public class EdgeApplicationConnector {
                     )
                     .build();
 
-            /*
-            SSLContext sslContext = SSLContexts.custom()
-                    .loadKeyMaterial(
-                            new File("certs/test.client.chain.p12"),
-                            "changeit".toCharArray(),
-                            "changeit".toCharArray()
-                    )
-                    .loadTrustMaterial(
-                            new File("certs/test.ca.jks")
-                    )
-                    .build();
-            */
-
             httpClient = HttpClients.custom()
                     .setSSLContext(sslContext)
                     .build();
