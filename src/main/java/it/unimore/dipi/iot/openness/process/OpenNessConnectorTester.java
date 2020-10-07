@@ -5,12 +5,14 @@ import it.unimore.dipi.iot.openness.connector.EdgeApplicationAuthenticator;
 import it.unimore.dipi.iot.openness.connector.EdgeApplicationConnector;
 import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceDescriptor;
 import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceList;
+import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceNotificationDescriptor;
 import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceUrn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -48,11 +50,17 @@ public class OpenNessConnectorTester {
             }
 
             EdgeApplicationConnector edgeApplicationConnector = new EdgeApplicationConnector(OPENNESS_CONTROLLER_BASE_APP_URL, authorizedApplicationConfiguration);
+            final List<EdgeApplicationServiceNotificationDescriptor> notifications = new ArrayList<>();
+            notifications.add(new EdgeApplicationServiceNotificationDescriptor(
+                    "fake notification",
+                    "1",
+                    "fake description"
+            ));
             edgeApplicationConnector.postService(new EdgeApplicationServiceDescriptor(
                     new EdgeApplicationServiceUrn("test-service", "test"),
                     "fake service",
                     "fake endpoint",
-                    Collections.emptyList()
+                    notifications
             ));
             EdgeApplicationServiceList availableServiceList = edgeApplicationConnector.getAvailableServices();
 

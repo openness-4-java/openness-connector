@@ -108,6 +108,7 @@ public class EdgeApplicationConnector {
         final HttpPost postService = new HttpPost(targetUrl);
         try {
             final String serviceJsonString = this.objectMapper.writeValueAsString(service);
+            logger.debug(serviceJsonString);
             postService.setEntity(new StringEntity(serviceJsonString));
             final CloseableHttpResponse response = httpClient.execute(postService);
             if (response != null && response.getStatusLine().getStatusCode() == 200) {
