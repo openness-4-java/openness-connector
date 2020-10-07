@@ -29,6 +29,7 @@ public class OpenNessConnectorTester {
             String OPENNESS_CONTROLLER_BASE_APP_URL = "https://eaa.openness:7443/";
 
             String applicationId = "OpenNessConnectorTester";
+            String nameSpace = "testing";
             String organizationName =  "DIPIUniMore";
 
             AuthorizedApplicationConfiguration authorizedApplicationConfiguration;
@@ -43,22 +44,24 @@ public class OpenNessConnectorTester {
             }
             else {
                 logger.info("AuthorizedApplicationConfiguration Not Available ! Authenticating the app ...");
-                authorizedApplicationConfiguration = edgeApplicationAuthenticator.authenticateApplication(applicationId, organizationName);
+                authorizedApplicationConfiguration = edgeApplicationAuthenticator.authenticateApplication(nameSpace, applicationId, organizationName);
             }
 
             EdgeApplicationConnector edgeApplicationConnector = new EdgeApplicationConnector(OPENNESS_CONTROLLER_BASE_APP_URL, authorizedApplicationConfiguration);
-            /*final List<EdgeApplicationServiceNotificationDescriptor> notifications = new ArrayList<>();
+            final List<EdgeApplicationServiceNotificationDescriptor> notifications = new ArrayList<>();
             notifications.add(new EdgeApplicationServiceNotificationDescriptor(
                     "fake notification",
-                    "1",
+                    "0.0.1",
                     "fake description"
             ));
             edgeApplicationConnector.postService(new EdgeApplicationServiceDescriptor(
-                    new EdgeApplicationServiceUrn("test-service", "test"),
+                    new EdgeApplicationServiceUrn(applicationId, nameSpace),  // MUST BE AS DURING AUTHENTICATION
                     "fake service",
-                    "fake endpoint",
-                    notifications
-            ));*/
+                    String.format("%s/%s", nameSpace, applicationId),  // MUST BE AS DURING AUTHENTICATION
+                    "fake status",
+                    notifications,
+                    new ServiceInfo("fake info")
+            ));
             final EdgeApplicationSubscriptionList subscriptions = edgeApplicationConnector.getSubscriptions();
             if (subscriptions.getSubscriptions() == null) {
                 logger.info("No subscriptions");

@@ -20,17 +20,25 @@ public class EdgeApplicationServiceDescriptor {
     @JsonProperty("endpoint_uri")
     private String endpointUri;
 
+    @JsonProperty("status")
+    private String status;
+
     @JsonProperty("notifications")
     private List<EdgeApplicationServiceNotificationDescriptor> notificationDescriptorList;
+
+    @JsonProperty("info")
+    private ServiceInfo info;
 
     public EdgeApplicationServiceDescriptor() {
     }
 
-    public EdgeApplicationServiceDescriptor(EdgeApplicationServiceUrn serviceUrn, String description, String endpointUri, List<EdgeApplicationServiceNotificationDescriptor> notificationDescriptorList) {
+    public EdgeApplicationServiceDescriptor(EdgeApplicationServiceUrn serviceUrn, String description, String endpointUri, final String status, List<EdgeApplicationServiceNotificationDescriptor> notificationDescriptorList, final ServiceInfo info) {
         this.serviceUrn = serviceUrn;
         this.description = description;
         this.endpointUri = endpointUri;
+        this.status = status;
         this.notificationDescriptorList = notificationDescriptorList;
+        this.info = info;
     }
 
     public EdgeApplicationServiceUrn getServiceUrn() {
@@ -57,6 +65,14 @@ public class EdgeApplicationServiceDescriptor {
         this.endpointUri = endpointUri;
     }
 
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
     public List<EdgeApplicationServiceNotificationDescriptor> getNotificationDescriptorList() {
         return notificationDescriptorList;
     }
@@ -65,13 +81,23 @@ public class EdgeApplicationServiceDescriptor {
         this.notificationDescriptorList = notificationDescriptorList;
     }
 
+    public ServiceInfo getInfo() {
+        return info;
+    }
+
+    public void setInfo(ServiceInfo info) {
+        this.info = info;
+    }
+
     @Override
     public String toString() {
         final StringBuffer sb = new StringBuffer("EdgeApplicationServiceDescriptor{");
         sb.append("serviceUrn=").append(serviceUrn);
         sb.append(", description='").append(description).append('\'');
         sb.append(", endpointUri='").append(endpointUri).append('\'');
+        sb.append(", status='").append(status).append('\'');
         sb.append(", notificationDescriptorList=").append(notificationDescriptorList);
+        sb.append(", info='").append(info).append('\'');
         sb.append('}');
         return sb.toString();
     }
