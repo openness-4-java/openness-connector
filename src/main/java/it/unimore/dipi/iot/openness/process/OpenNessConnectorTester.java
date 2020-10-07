@@ -48,12 +48,14 @@ public class OpenNessConnectorTester {
             }
 
             EdgeApplicationConnector edgeApplicationConnector = new EdgeApplicationConnector(OPENNESS_CONTROLLER_BASE_APP_URL, authorizedApplicationConfiguration);
+
             final List<EdgeApplicationServiceNotificationDescriptor> notifications = new ArrayList<>();
-            notifications.add(new EdgeApplicationServiceNotificationDescriptor(
+            final EdgeApplicationServiceNotificationDescriptor notificationDescriptor = new EdgeApplicationServiceNotificationDescriptor(
                     "fake notification",
                     "0.0.1",
                     "fake description"
-            ));
+            );
+            notifications.add(notificationDescriptor);
             edgeApplicationConnector.postService(new EdgeApplicationServiceDescriptor(
                     new EdgeApplicationServiceUrn(applicationId, nameSpace),  // MUST BE AS DURING AUTHENTICATION
                     "fake service",
@@ -62,6 +64,18 @@ public class OpenNessConnectorTester {
                     notifications,
                     new ServiceInfo("fake info")
             ));
+
+            edgeApplicationConnector.postNotification(new Notification(
+                    "fake notification",
+                    "0.0.1",
+                    new NotificationPayload("fake payload")
+            ));
+
+            // "The consumer application must establish a Websocket before subscribing to services." (https://www.openness.org/docs/doc/applications/openness_appguide#service-activation)
+            //edgeApplicationConnector.postSubscription(notificationDescriptor, applicationId, nameSpace);  // ERROR 500
+            //edgeApplicationConnector.postSubscription(notificationDescriptor, "", nameSpace);  // ERROR 500
+            //edgeApplicationConnector.postSubscription(notificationDescriptor, "", "");  // ERROR 405 (method not allowed)
+
             final EdgeApplicationSubscriptionList subscriptions = edgeApplicationConnector.getSubscriptions();
             if (subscriptions.getSubscriptions() == null) {
                 logger.info("No subscriptions");
@@ -72,7 +86,6 @@ public class OpenNessConnectorTester {
             }
 
             EdgeApplicationServiceList availableServiceList = edgeApplicationConnector.getAvailableServices();
-
             for(EdgeApplicationServiceDescriptor serviceDescriptor : availableServiceList.getServiceList()){
                 logger.info("Service Info: {}", serviceDescriptor);
             }

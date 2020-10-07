@@ -143,6 +143,57 @@ public class EdgeApplicationConnector {
         }
     }
 
+    public void postNotification(final Notification notification) throws EdgeApplicationConnectorException {
+        final String targetUrl = String.format("%snotifications", this.edgeApplicationServiceEndpoint);
+        logger.debug("Post notification - Target Url: {}", targetUrl);
+        final HttpPost postNotification = new HttpPost(targetUrl);
+        try {
+            final String notificationJsonString = this.objectMapper.writeValueAsString(notification);
+            logger.debug(notificationJsonString);
+            postNotification.setEntity(new StringEntity(notificationJsonString));
+            final CloseableHttpResponse response = httpClient.execute(postNotification);
+            if (response != null && response.getStatusLine().getStatusCode() == 202) {
+                logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
+            } else {
+                logger.error("Wrong Response Received !");
+                throw getEdgeApplicationConnectorException(response, "Error posting Service ! Status Code: %d -> Response Body: %s");
+            }
+        } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
+            throw new EdgeApplicationConnectorException(String.format("Error posting Notification ! Cause: %s -> Msg: %s",
+                    e.getCause(), e.getLocalizedMessage()));
+        }
+    }
+
+    public void postSubscription(final EdgeApplicationServiceNotificationDescriptor notificationDescriptor, final String applicationId, final String nameSpace) throws EdgeApplicationConnectorException {
+        String targetUrl;  // When the consumer application decides on a particular service that it would like to subscribe to, it should call POST /subscriptions/{urn.namespace} to subscribe to all services available in a namespace or call POST /subscriptions/{urn.namespace}/{urn.id} to subscribe to notifications related to the exact producer.
+        if (nameSpace != "") {
+            if (applicationId != "") {
+                targetUrl = String.format("%ssubscriptions/%s/%s", this.edgeApplicationServiceEndpoint, nameSpace, applicationId);
+            } else {
+                targetUrl = String.format("%ssubscriptions/%s", this.edgeApplicationServiceEndpoint, nameSpace);
+            }
+        } else {
+            targetUrl = String.format("%ssubscriptions", this.edgeApplicationServiceEndpoint);
+        }
+        final HttpPost postSubscription = new HttpPost(targetUrl);
+        logger.debug("Post subscription - Target Url: {}", targetUrl);
+        try {
+            final String notificationDescriptorJsonString = this.objectMapper.writeValueAsString(notificationDescriptor);
+            logger.debug(notificationDescriptorJsonString);
+            postSubscription.setEntity(new StringEntity(notificationDescriptorJsonString));
+            final CloseableHttpResponse response = httpClient.execute(postSubscription);
+            if (response != null && response.getStatusLine().getStatusCode() == 201) {
+                logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
+            } else {
+                logger.error("Wrong Response Received !");
+                throw getEdgeApplicationConnectorException(response, "Error posting Service ! Status Code: %d -> Response Body: %s");
+            }
+        } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
+            throw new EdgeApplicationConnectorException(String.format("Error posting Notification ! Cause: %s -> Msg: %s",
+                    e.getCause(), e.getLocalizedMessage()));
+        }
+    }
+
     private EdgeApplicationConnectorException getEdgeApplicationConnectorException(CloseableHttpResponse response, String s) throws IOException {
         return new EdgeApplicationConnectorException(String.format(s,
                 response != null ? response.getStatusLine().getStatusCode() : -1,
