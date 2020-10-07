@@ -121,12 +121,12 @@ public class EdgeApplicationAuthenticator {
         }
     }
 
-    private Optional<String> generateCertificateSigningRequest(String organization, String commonName) throws EdgeApplicationAuthenticatorException {
+    private Optional<String> generateCertificateSigningRequest(String organization, String nameSpace, String appId) throws EdgeApplicationAuthenticatorException {
 
         try {
 
             PKCS10CertificationRequestBuilder p10Builder = new JcaPKCS10CertificationRequestBuilder(
-                    new X500Principal(String.format("CN=%s, O=%s", organization, commonName)), this.keyPair.getPublic());
+                    new X500Principal(String.format("CN=%s:%s, O=%s", nameSpace, appId, organization)), this.keyPair.getPublic());  // commonName = nameSpace:app-id
             JcaContentSignerBuilder csBuilder = new JcaContentSignerBuilder("SHA256withECDSA");
             ContentSigner signer = csBuilder.build(this.keyPair.getPrivate());
             PKCS10CertificationRequest csr = p10Builder.build(signer);
@@ -168,7 +168,7 @@ public class EdgeApplicationAuthenticator {
         }
     }
 
-    public AuthorizedApplicationConfiguration authenticateApplication(String applicationId, String organizationName) throws EdgeApplicationAuthenticatorException {
+    public AuthorizedApplicationConfiguration authenticateApplication(String nameSpace, String applicationId, String organizationName) throws EdgeApplicationAuthenticatorException {
 
         if(this.controllerApiEndpoint == null)
             throw new EdgeApplicationAuthenticatorException("Invalid OpenNess Controller Endpoint ! Null Endpoint provided !");
@@ -182,7 +182,7 @@ public class EdgeApplicationAuthenticator {
 
             checkApplicationKeyPair(applicationUniqueIdentifier);
 
-            Optional<String> csrString = generateCertificateSigningRequest(organizationName, applicationId);
+            Optional<String> csrString = generateCertificateSigningRequest(organizationName, nameSpace, applicationId);
 
             if(!csrString.isPresent())
                 throw new EdgeApplicationAuthenticatorException("Error Generating Certificate Signing Request !");
@@ -410,7 +410,7 @@ public class EdgeApplicationAuthenticator {
             String OPENNESS_CONTROLLER_BASE_URL = "http://127.0.0.1:7080/auth";
 
             EdgeApplicationAuthenticator edgeApplicationAuthenticator = new EdgeApplicationAuthenticator(OPENNESS_CONTROLLER_BASE_URL);
-            AuthorizedApplicationConfiguration authorizedApplicationConfiguration = edgeApplicationAuthenticator.authenticateApplication("authTestConnector", "DIPIUniMore");
+            AuthorizedApplicationConfiguration authorizedApplicationConfiguration = edgeApplicationAuthenticator.authenticateApplication("testing", "authTestConnector", "DIPIUniMore");
             logger.info("Authorized Application Configuration: {}", authorizedApplicationConfiguration);
 
             /*
