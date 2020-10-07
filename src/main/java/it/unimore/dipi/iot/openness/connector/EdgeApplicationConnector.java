@@ -1,11 +1,17 @@
 package it.unimore.dipi.iot.openness.connector;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
+import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceDescriptor;
 import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceList;
+import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceUrn;
 import it.unimore.dipi.iot.openness.exception.EdgeApplicationConnectorException;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContexts;
@@ -14,6 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import javax.net.ssl.SSLContext;
 import java.io.File;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 
 /**
  * @author Marco Picone, Ph.D. - picone.m@gmail.com
@@ -84,9 +92,7 @@ public class EdgeApplicationConnector {
             }
             else {
                 logger.error("Wrong Response Received !");
-                throw new EdgeApplicationConnectorException(String.format("Error retrieving Service List ! Status Code: %d -> Response Body: %s",
-                        response != null ? response.getStatusLine().getStatusCode() : -1,
-                        response != null ? EntityUtils.toString(response.getEntity()) : null));
+                throw getEdgeApplicationConnectorException(response, "Error retrieving Service List ! Status Code: %d -> Response Body: %s");
             }
 
         }catch (Exception e){
@@ -94,6 +100,32 @@ public class EdgeApplicationConnector {
             logger.error(errorMsg);
             throw new EdgeApplicationConnectorException(errorMsg);
         }
+    }
+
+    public void postService(final EdgeApplicationServiceDescriptor service) throws EdgeApplicationConnectorException {
+        final String targetUrl = String.format("%sservices", this.edgeApplicationServiceEndpoint);
+        logger.debug("Post Service - Target Url: {}", targetUrl);
+        final HttpPost postService = new HttpPost(targetUrl);
+        try {
+            final String serviceJsonString = this.objectMapper.writeValueAsString(service);
+            postService.setEntity(new StringEntity(serviceJsonString));
+            final CloseableHttpResponse response = httpClient.execute(postService);
+            if (response != null && response.getStatusLine().getStatusCode() == 200) {
+                logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
+            } else {
+                logger.error("Wrong Response Received !");
+                throw getEdgeApplicationConnectorException(response, "Error posting Service ! Status Code: %d -> Response Body: %s");
+            }
+        } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
+            throw new EdgeApplicationConnectorException(String.format("Error posting Service ! Cause: %s -> Msg: %s",
+                    e.getCause(), e.getLocalizedMessage()));
+        }
+    }
+
+    private EdgeApplicationConnectorException getEdgeApplicationConnectorException(CloseableHttpResponse response, String s) throws IOException {
+        return new EdgeApplicationConnectorException(String.format(s,
+                response != null ? response.getStatusLine().getStatusCode() : -1,
+                response != null ? EntityUtils.toString(response.getEntity()) : null));
     }
 
     public AuthorizedApplicationConfiguration getAuthorizedApplicationConfiguration() {
