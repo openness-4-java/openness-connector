@@ -3,9 +3,7 @@ package it.unimore.dipi.iot.openness.connector;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
-import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceDescriptor;
-import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceList;
-import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceUrn;
+import it.unimore.dipi.iot.openness.dto.service.*;
 import it.unimore.dipi.iot.openness.exception.EdgeApplicationConnectorException;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -22,6 +20,7 @@ import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.util.List;
 
 /**
  * @author Marco Picone, Ph.D. - picone.m@gmail.com
@@ -119,6 +118,27 @@ public class EdgeApplicationConnector {
             }
         } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
             throw new EdgeApplicationConnectorException(String.format("Error posting Service ! Cause: %s -> Msg: %s",
+                    e.getCause(), e.getLocalizedMessage()));
+        }
+    }
+
+    public EdgeApplicationSubscriptionList getSubscriptions() throws EdgeApplicationConnectorException {
+        final String targetUrl = String.format("%ssubscriptions", this.edgeApplicationServiceEndpoint);
+        logger.debug("Get Subscriptions - Target Url: {}", targetUrl);
+        final HttpGet getSubscriptions = new HttpGet(targetUrl);
+        try {
+            final CloseableHttpResponse response = httpClient.execute(getSubscriptions);
+            if (response != null && response.getStatusLine().getStatusCode() == 200) {
+                final String body = EntityUtils.toString(response.getEntity());
+                logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
+                logger.debug("Response Body: {}", body);
+                return objectMapper.readValue(body, EdgeApplicationSubscriptionList.class);
+            } else {
+                logger.error("Wrong Response Received !");
+                throw getEdgeApplicationConnectorException(response, "Error getting Subscriptions ! Status Code: %d -> Response Body: %s");
+            }
+        } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
+            throw new EdgeApplicationConnectorException(String.format("Error getting Subscriptions ! Cause: %s -> Msg: %s",
                     e.getCause(), e.getLocalizedMessage()));
         }
     }

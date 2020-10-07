@@ -3,10 +3,7 @@ package it.unimore.dipi.iot.openness.process;
 import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
 import it.unimore.dipi.iot.openness.connector.EdgeApplicationAuthenticator;
 import it.unimore.dipi.iot.openness.connector.EdgeApplicationConnector;
-import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceDescriptor;
-import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceList;
-import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceNotificationDescriptor;
-import it.unimore.dipi.iot.openness.dto.service.EdgeApplicationServiceUrn;
+import it.unimore.dipi.iot.openness.dto.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +47,7 @@ public class OpenNessConnectorTester {
             }
 
             EdgeApplicationConnector edgeApplicationConnector = new EdgeApplicationConnector(OPENNESS_CONTROLLER_BASE_APP_URL, authorizedApplicationConfiguration);
-            final List<EdgeApplicationServiceNotificationDescriptor> notifications = new ArrayList<>();
+            /*final List<EdgeApplicationServiceNotificationDescriptor> notifications = new ArrayList<>();
             notifications.add(new EdgeApplicationServiceNotificationDescriptor(
                     "fake notification",
                     "1",
@@ -61,7 +58,16 @@ public class OpenNessConnectorTester {
                     "fake service",
                     "fake endpoint",
                     notifications
-            ));
+            ));*/
+            final EdgeApplicationSubscriptionList subscriptions = edgeApplicationConnector.getSubscriptions();
+            if (subscriptions.getSubscriptions() == null) {
+                logger.info("No subscriptions");
+            } else {
+                for (EdgeApplicationSubscription s : subscriptions.getSubscriptions()) {
+                    logger.info("Subscription Info: {}", s);
+                }
+            }
+
             EdgeApplicationServiceList availableServiceList = edgeApplicationConnector.getAvailableServices();
 
             for(EdgeApplicationServiceDescriptor serviceDescriptor : availableServiceList.getServiceList()){
