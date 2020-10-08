@@ -26,7 +26,9 @@ import org.springframework.web.socket.messaging.WebSocketStompClient;
 import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.IOException;
-import java.util.Scanner;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 /**
@@ -191,19 +193,28 @@ public class EdgeApplicationConnector {
         getNotifications.addHeader(HttpHeaders.HOST, String.format("%s:%s", nameSpace, applicationId));
         getNotifications.addHeader("Sec-Websocket-Version", "13");
         getNotifications.addHeader("Sec-Websocket-Key", "xqBt3ImNzJbYqRINxEFlkg==");
-        try {
-            final CloseableHttpResponse response = httpClient.execute(getNotifications);
+        Future<CloseableHttpResponse> openWsTask = Executors.newSingleThreadExecutor().submit(new Callable<CloseableHttpResponse>() {
+            @Override
+            public CloseableHttpResponse call() throws Exception {
+                final CloseableHttpResponse response = httpClient.execute(getNotifications);
+                if (response != null && response.getStatusLine().getStatusCode() == 101) {
+                    logger.debug("[Executor] Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
+                } else {
+                    logger.error("[Executor] Wrong Response Received !");
+                    throw getEdgeApplicationConnectorException(response, "Error getting Notifications ! Status Code: %d -> Response Body: %s");
+                }
+                return response;
+            }
+        });
+        return true;
+            /*final CloseableHttpResponse response = openWsTask.get();
             if (response != null && response.getStatusLine().getStatusCode() == 101) {
                 logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
                 return true;
             } else {
                 logger.error("Wrong Response Received !");
                 throw getEdgeApplicationConnectorException(response, "Error getting Notifications ! Status Code: %d -> Response Body: %s");
-            }
-        } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
-            throw new EdgeApplicationConnectorException(String.format("Error getting Notifications ! Cause: %s -> Msg: %s",
-                    e.getCause(), e.getLocalizedMessage()));
-        }
+            }*/
     }
 
     public void establishWebsocket(final String path) {
