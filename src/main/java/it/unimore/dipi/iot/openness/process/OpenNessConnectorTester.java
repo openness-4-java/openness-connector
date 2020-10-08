@@ -26,7 +26,7 @@ public class OpenNessConnectorTester {
 
             String OPENNESS_CONTROLLER_BASE_AUTH_URL = "http://eaa.openness:7080/";
             String OPENNESS_CONTROLLER_BASE_APP_URL = "https://eaa.openness:7443/";
-            String OPENNESS_CONTROLLER_BASE_APP_WS_URL = "wss://eaa.openness:443/";
+            String OPENNESS_CONTROLLER_BASE_APP_WS_URL = "wss://eaa.openness:7443/";
 
             String applicationId = "OpenNessConnectorTester";
             String nameSpace = "testing";
@@ -92,19 +92,19 @@ public class OpenNessConnectorTester {
             ));
 
             // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
-            final boolean ok = edgeApplicationConnector.getNotifications(nameSpace, applicationId);  // ERROR 400 (bad request) with https, "ws/wss protocol not supported" with ws/wss
-            //edgeApplicationConnector.establishWebsocket("notifications");  // ERROR connection refused
+            //final boolean ok = edgeApplicationConnector.getNotifications(nameSpace, applicationId);  // ERROR 400 (bad request) with https, "ws/wss protocol not supported" with ws/wss
+            edgeApplicationConnector.establishWebsocket("notifications");  // ERROR connection refused
 
             // "The consumer application must establish a Websocket before subscribing to services." (https://www.openness.org/docs/doc/applications/openness_appguide#service-activation)
-            edgeApplicationConnector.postSubscription(notifications, applicationId, nameSpace);  // ERROR 500
+            //edgeApplicationConnector.postSubscription(notifications, applicationId, nameSpace);  // ERROR 500
             //edgeApplicationConnector.postSubscription(notificationDescriptor1, "", nameSpace);  // ERROR 500
             //edgeApplicationConnector.postSubscription(notificationDescriptor1, "", "");  // ERROR 405 (method not allowed)
 
-            edgeApplicationConnector.postNotification(new NotificationFromProducer(
+            /*edgeApplicationConnector.postNotification(new NotificationFromProducer(
                     "fake notification 2",
                     "0.0.2",
                     new NotificationPayload("fake payload 2")
-            ));
+            ));*/
 
         } catch (Exception e) {
             e.printStackTrace();

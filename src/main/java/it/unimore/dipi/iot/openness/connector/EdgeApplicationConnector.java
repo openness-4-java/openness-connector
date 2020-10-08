@@ -20,12 +20,14 @@ import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandler;
 import org.springframework.util.concurrent.ListenableFuture;
 import org.springframework.web.socket.client.WebSocketClient;
+import org.springframework.web.socket.client.jetty.JettyWebSocketClient;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -49,6 +51,7 @@ public class EdgeApplicationConnector {
 
     private String edgeApplicationServiceEndpoint;
     private String edgeApplicationServiceWsEndpoint;
+    private final HashMap<String, Object> userProperties;
 
     public EdgeApplicationConnector(String edgeApplicationServiceEndpoint, AuthorizedApplicationConfiguration authorizedApplicationConfiguration, final String edgeApplicationServiceWsEndpoint) throws EdgeApplicationConnectorException {
 
@@ -69,6 +72,9 @@ public class EdgeApplicationConnector {
                             new File(this.authorizedApplicationConfiguration.getTrustStoreFilePath())
                     )
                     .build();
+
+            this.userProperties = new HashMap<>();
+            //this.userProperties.put(Constants.SSL_CONTEXT_PROPERTY, sslContext);
 
             httpClient = HttpClients.custom()
                     .setSSLContext(sslContext)
@@ -221,6 +227,7 @@ public class EdgeApplicationConnector {
     public void establishWebsocket(final String path) {
         logger.info("Establishing WS connection, target: {}{}", this.edgeApplicationServiceWsEndpoint, path);
         final WebSocketClient client = new StandardWebSocketClient();
+        ((StandardWebSocketClient) client).setUserProperties(this.userProperties);
         final WebSocketStompClient stompClient = new WebSocketStompClient(client);
         stompClient.setMessageConverter(new MappingJackson2MessageConverter());
         final StompSessionHandler sessionHandler = new NotificationsStompSessionHandler();
