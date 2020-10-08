@@ -1,11 +1,10 @@
 package it.unimore.dipi.iot.openness.connector;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
 import it.unimore.dipi.iot.openness.dto.service.*;
 import it.unimore.dipi.iot.openness.exception.EdgeApplicationConnectorException;
-import org.apache.http.client.ClientProtocolException;
+import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -16,11 +15,19 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.messaging.converter.MappingJackson2MessageConverter;
+import org.springframework.messaging.simp.stomp.StompSession;
+import org.springframework.messaging.simp.stomp.StompSessionHandler;
+import org.springframework.util.concurrent.ListenableFuture;
+import org.springframework.web.socket.client.WebSocketClient;
+import org.springframework.web.socket.client.standard.StandardWebSocketClient;
+import org.springframework.web.socket.messaging.WebSocketStompClient;
+
 import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.util.List;
+import java.util.Scanner;
+import java.util.concurrent.Future;
 
 /**
  * @author Marco Picone, Ph.D. - picone.m@gmail.com
@@ -38,12 +45,14 @@ public class EdgeApplicationConnector {
     private ObjectMapper objectMapper;
 
     private String edgeApplicationServiceEndpoint;
+    private String edgeApplicationServiceWsEndpoint;
 
-    public EdgeApplicationConnector(String edgeApplicationServiceEndpoint, AuthorizedApplicationConfiguration authorizedApplicationConfiguration) throws EdgeApplicationConnectorException {
+    public EdgeApplicationConnector(String edgeApplicationServiceEndpoint, AuthorizedApplicationConfiguration authorizedApplicationConfiguration, final String edgeApplicationServiceWsEndpoint) throws EdgeApplicationConnectorException {
 
         try{
 
             this.edgeApplicationServiceEndpoint = edgeApplicationServiceEndpoint;
+            this.edgeApplicationServiceWsEndpoint = edgeApplicationServiceWsEndpoint;
             this.authorizedApplicationConfiguration = authorizedApplicationConfiguration;
             this.objectMapper = new ObjectMapper();
 
@@ -174,9 +183,11 @@ public class EdgeApplicationConnector {
     }
 
     public boolean getNotifications() throws EdgeApplicationConnectorException {  // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
-        final String targetUrl = String.format("%snotifcations", this.edgeApplicationServiceEndpoint);
+        final String targetUrl = String.format("%snotifcations", this.edgeApplicationServiceWsEndpoint);
         logger.debug("Get Notifications - Target Url: {}", targetUrl);
         final HttpGet getNotifications = new HttpGet(targetUrl);
+        getNotifications.addHeader(HttpHeaders.CONNECTION, "Upgrade");
+        getNotifications.addHeader(HttpHeaders.UPGRADE, "websocket");
         try {
             final CloseableHttpResponse response = httpClient.execute(getNotifications);
             if (response != null && response.getStatusLine().getStatusCode() == 101) {
@@ -194,7 +205,27 @@ public class EdgeApplicationConnector {
         }
     }
 
-    public void postNotification(final Notification notification) throws EdgeApplicationConnectorException {
+    public void establishWebsocket(final String path) {
+        logger.info("Establishing WS connection, target: {}{}", this.edgeApplicationServiceWsEndpoint, path);
+        final WebSocketClient client = new StandardWebSocketClient();
+        final WebSocketStompClient stompClient = new WebSocketStompClient(client);
+        stompClient.setMessageConverter(new MappingJackson2MessageConverter());
+        final StompSessionHandler sessionHandler = new NotificationsStompSessionHandler();
+        String target;
+        if (path != "") {
+            target = String.format("%s%s", this.edgeApplicationServiceWsEndpoint, path);
+        } else {
+            target = this.edgeApplicationServiceWsEndpoint;
+        }
+        ListenableFuture<StompSession> willConnect = stompClient.connect(target, sessionHandler);
+        willConnect.addCallback(
+                x -> logger.info("Success: {}", x),
+                x -> logger.info("Failure: {} -> {}", x.getCause(), x.getLocalizedMessage())
+        );
+        //new Scanner(System.in).nextLine(); // Don't close immediately.
+    }
+
+    public void postNotification(final NotificationFromProducer notification) throws EdgeApplicationConnectorException {
         final String targetUrl = String.format("%snotifications", this.edgeApplicationServiceEndpoint);
         logger.debug("Post notification - Target Url: {}", targetUrl);
         final HttpPost postNotification = new HttpPost(targetUrl);

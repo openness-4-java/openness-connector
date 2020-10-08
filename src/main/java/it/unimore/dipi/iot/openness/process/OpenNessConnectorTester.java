@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,7 +18,7 @@ import java.util.Optional;
  */
 public class OpenNessConnectorTester {
 
-    private static final Logger logger = LoggerFactory.getLogger(EdgeApplicationAuthenticator.class);
+    private static final Logger logger = LoggerFactory.getLogger(OpenNessConnectorTester.class);
 
     public static void main(String[] args) {
 
@@ -27,6 +26,7 @@ public class OpenNessConnectorTester {
 
             String OPENNESS_CONTROLLER_BASE_AUTH_URL = "http://eaa.openness:7080/";
             String OPENNESS_CONTROLLER_BASE_APP_URL = "https://eaa.openness:7443/";
+            String OPENNESS_CONTROLLER_BASE_APP_WS_URL = "wss://eaa.openness:443/";
 
             String applicationId = "OpenNessConnectorTester";
             String nameSpace = "testing";
@@ -47,7 +47,7 @@ public class OpenNessConnectorTester {
                 authorizedApplicationConfiguration = edgeApplicationAuthenticator.authenticateApplication(nameSpace, applicationId, organizationName);
             }
 
-            EdgeApplicationConnector edgeApplicationConnector = new EdgeApplicationConnector(OPENNESS_CONTROLLER_BASE_APP_URL, authorizedApplicationConfiguration);
+            EdgeApplicationConnector edgeApplicationConnector = new EdgeApplicationConnector(OPENNESS_CONTROLLER_BASE_APP_URL, authorizedApplicationConfiguration, OPENNESS_CONTROLLER_BASE_APP_WS_URL);
 
             final List<EdgeApplicationServiceNotificationDescriptor> notifications = new ArrayList<>();
             final EdgeApplicationServiceNotificationDescriptor notificationDescriptor1 = new EdgeApplicationServiceNotificationDescriptor(
@@ -76,11 +76,6 @@ public class OpenNessConnectorTester {
                 logger.info("Service Info: {}", serviceDescriptor);
             }
 
-            // "The consumer application must establish a Websocket before subscribing to services." (https://www.openness.org/docs/doc/applications/openness_appguide#service-activation)
-            //edgeApplicationConnector.postSubscription(notificationDescriptor, applicationId, nameSpace);  // ERROR 500
-            //edgeApplicationConnector.postSubscription(notificationDescriptor, "", nameSpace);  // ERROR 500
-            //edgeApplicationConnector.postSubscription(notificationDescriptor, "", "");  // ERROR 405 (method not allowed)
-
             final EdgeApplicationSubscriptionList subscriptions = edgeApplicationConnector.getSubscriptions();
             if (subscriptions.getSubscriptions() == null) {
                 logger.info("No subscriptions");
@@ -90,14 +85,20 @@ public class OpenNessConnectorTester {
                 }
             }
 
-            edgeApplicationConnector.postNotification(new Notification(
+            edgeApplicationConnector.postNotification(new NotificationFromProducer(
                     "fake notification 1",
                     "0.0.1",
                     new NotificationPayload("fake payload 1")
             ));
 
             // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
-            //final boolean ok = edgeApplicationConnector.getNotifications();  // ERROR 404
+            final boolean ok = edgeApplicationConnector.getNotifications();  // ERROR ws/wss protocol not supported
+            edgeApplicationConnector.establishWebsocket("notifications");  // ERROR connection refused
+
+            // "The consumer application must establish a Websocket before subscribing to services." (https://www.openness.org/docs/doc/applications/openness_appguide#service-activation)
+            //edgeApplicationConnector.postSubscription(notificationDescriptor, applicationId, nameSpace);  // ERROR 500
+            //edgeApplicationConnector.postSubscription(notificationDescriptor, "", nameSpace);  // ERROR 500
+            //edgeApplicationConnector.postSubscription(notificationDescriptor, "", "");  // ERROR 405 (method not allowed)
 
         } catch (Exception e) {
             e.printStackTrace();
