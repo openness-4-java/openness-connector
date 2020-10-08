@@ -42,6 +42,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.eclipse.jetty.websocket</groupId>
+            <artifactId>websocket-client</artifactId>
+            <version>9.4.32.v20200930</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
             <version>${apache-commons.version}</version>

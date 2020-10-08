@@ -72,6 +72,8 @@ public class EdgeApplicationConnector {
                             new File(this.authorizedApplicationConfiguration.getTrustStoreFilePath())
                     )
                     .build();
+            logger.error("########################### {}", this.authorizedApplicationConfiguration.getKeyStoreFilePath());
+            logger.error("########################### {}", this.authorizedApplicationConfiguration.getTrustStoreFilePath());
 
             this.userProperties = new HashMap<>();
             //this.userProperties.put(Constants.SSL_CONTEXT_PROPERTY, sslContext);
