@@ -56,7 +56,7 @@ public class OpenNessConnectorTester {
                     "fake description 2"
             );
             final EdgeApplicationServiceNotificationDescriptor notificationDescriptor2 = new EdgeApplicationServiceNotificationDescriptor(
-                    "fake notification 1",
+                    "fake notification 2",
                     "0.0.2",
                     "fake description 2"
             );
@@ -96,9 +96,15 @@ public class OpenNessConnectorTester {
             //edgeApplicationConnector.establishWebsocket("notifications");  // ERROR connection refused
 
             // "The consumer application must establish a Websocket before subscribing to services." (https://www.openness.org/docs/doc/applications/openness_appguide#service-activation)
-            edgeApplicationConnector.postSubscription(notificationDescriptor1, applicationId, nameSpace);  // ERROR 500
+            edgeApplicationConnector.postSubscription(notifications, applicationId, nameSpace);  // ERROR 500
             //edgeApplicationConnector.postSubscription(notificationDescriptor1, "", nameSpace);  // ERROR 500
             //edgeApplicationConnector.postSubscription(notificationDescriptor1, "", "");  // ERROR 405 (method not allowed)
+
+            edgeApplicationConnector.postNotification(new NotificationFromProducer(
+                    "fake notification 2",
+                    "0.0.2",
+                    new NotificationPayload("fake payload 2")
+            ));
 
         } catch (Exception e) {
             e.printStackTrace();

@@ -26,6 +26,7 @@ import org.springframework.web.socket.messaging.WebSocketStompClient;
 import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -154,7 +155,7 @@ public class EdgeApplicationConnector {
         }
     }
 
-    public void postSubscription(final EdgeApplicationServiceNotificationDescriptor notificationDescriptor, final String applicationId, final String nameSpace) throws EdgeApplicationConnectorException {
+    public void postSubscription(final List<EdgeApplicationServiceNotificationDescriptor> notifications, final String applicationId, final String nameSpace) throws EdgeApplicationConnectorException {
         String targetUrl;  // When the consumer application decides on a particular service that it would like to subscribe to, it should call POST /subscriptions/{urn.namespace} to subscribe to all services available in a namespace or call POST /subscriptions/{urn.namespace}/{urn.id} to subscribe to notifications related to the exact producer.
         if (nameSpace != "") {
             if (applicationId != "") {
@@ -168,7 +169,7 @@ public class EdgeApplicationConnector {
         final HttpPost postSubscription = new HttpPost(targetUrl);
         logger.debug("Post subscription - Target Url: {}", targetUrl);
         try {
-            final String notificationDescriptorJsonString = this.objectMapper.writeValueAsString(notificationDescriptor);
+            final String notificationDescriptorJsonString = this.objectMapper.writeValueAsString(notifications);
             logger.debug(notificationDescriptorJsonString);
             postSubscription.setEntity(new StringEntity(notificationDescriptorJsonString));
             final CloseableHttpResponse response = httpClient.execute(postSubscription);
