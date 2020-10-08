@@ -173,6 +173,27 @@ public class EdgeApplicationConnector {
         }
     }
 
+    public boolean getNotifications() throws EdgeApplicationConnectorException {  // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
+        final String targetUrl = String.format("%snotifcations", this.edgeApplicationServiceEndpoint);
+        logger.debug("Get Notifications - Target Url: {}", targetUrl);
+        final HttpGet getNotifications = new HttpGet(targetUrl);
+        try {
+            final CloseableHttpResponse response = httpClient.execute(getNotifications);
+            if (response != null && response.getStatusLine().getStatusCode() == 101) {
+                final String body = EntityUtils.toString(response.getEntity());
+                logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
+                logger.debug("Response Body: {}", body);
+                return true;
+            } else {
+                logger.error("Wrong Response Received !");
+                throw getEdgeApplicationConnectorException(response, "Error getting Notifications ! Status Code: %d -> Response Body: %s");
+            }
+        } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
+            throw new EdgeApplicationConnectorException(String.format("Error getting Notifications ! Cause: %s -> Msg: %s",
+                    e.getCause(), e.getLocalizedMessage()));
+        }
+    }
+
     public void postNotification(final Notification notification) throws EdgeApplicationConnectorException {
         final String targetUrl = String.format("%snotifications", this.edgeApplicationServiceEndpoint);
         logger.debug("Post notification - Target Url: {}", targetUrl);

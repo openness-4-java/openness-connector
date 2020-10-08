@@ -96,6 +96,9 @@ public class OpenNessConnectorTester {
                     new NotificationPayload("fake payload 1")
             ));
 
+            // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
+            //final boolean ok = edgeApplicationConnector.getNotifications();  // ERROR 404
+
         } catch (Exception e) {
             e.printStackTrace();
         }
