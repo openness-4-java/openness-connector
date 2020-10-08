@@ -182,12 +182,13 @@ public class EdgeApplicationConnector {
         }
     }
 
-    public boolean getNotifications() throws EdgeApplicationConnectorException {  // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
-        final String targetUrl = String.format("%snotifcations", this.edgeApplicationServiceWsEndpoint);
+    public boolean getNotifications(final String nameSpace, final String applicationId) throws EdgeApplicationConnectorException {  // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
+        final String targetUrl = String.format("%snotifcations", this.edgeApplicationServiceEndpoint);  // or this.edgeApplicationServiceWsEndpoint ? ERROR 404 with https, "ws/wss protocol not supported" with ws/wss
         logger.debug("Get Notifications - Target Url: {}", targetUrl);
         final HttpGet getNotifications = new HttpGet(targetUrl);
         getNotifications.addHeader(HttpHeaders.CONNECTION, "Upgrade");
         getNotifications.addHeader(HttpHeaders.UPGRADE, "websocket");
+        getNotifications.addHeader(HttpHeaders.HOST, String.format("%s:%s", nameSpace, applicationId));
         try {
             final CloseableHttpResponse response = httpClient.execute(getNotifications);
             if (response != null && response.getStatusLine().getStatusCode() == 101) {

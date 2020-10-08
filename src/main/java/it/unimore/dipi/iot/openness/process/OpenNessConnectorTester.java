@@ -92,7 +92,7 @@ public class OpenNessConnectorTester {
             ));
 
             // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
-            final boolean ok = edgeApplicationConnector.getNotifications();  // ERROR ws/wss protocol not supported
+            //final boolean ok = edgeApplicationConnector.getNotifications(nameSpace, applicationId);  // ERROR 404 with https, "ws/wss protocol not supported" with ws/wss
             edgeApplicationConnector.establishWebsocket("notifications");  // ERROR connection refused
 
             // "The consumer application must establish a Websocket before subscribing to services." (https://www.openness.org/docs/doc/applications/openness_appguide#service-activation)
