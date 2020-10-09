@@ -3,6 +3,7 @@ package it.unimore.dipi.iot.openness.process;
 import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
 import it.unimore.dipi.iot.openness.connector.EdgeApplicationAuthenticator;
 import it.unimore.dipi.iot.openness.connector.EdgeApplicationConnector;
+import it.unimore.dipi.iot.openness.connector.NotificationsHandle;
 import it.unimore.dipi.iot.openness.dto.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,49 +63,58 @@ public class OpenNessConnectorTester {
             );
             notifications.add(notificationDescriptor1);
             notifications.add(notificationDescriptor2);
-            edgeApplicationConnector.postService(new EdgeApplicationServiceDescriptor(
+            final EdgeApplicationServiceDescriptor service = new EdgeApplicationServiceDescriptor(
                     new EdgeApplicationServiceUrn(applicationId, nameSpace),  // MUST BE AS DURING AUTHENTICATION
                     "fake service",
                     String.format("%s/%s", nameSpace, applicationId),  // MUST BE AS DURING AUTHENTICATION
                     "fake status",
                     notifications,
                     new ServiceInfo("fake info")
-            ));
+            );
+            logger.info("Posting service: {}", service);
+            edgeApplicationConnector.postService(service);
 
+            logger.info("Getting services...");
             EdgeApplicationServiceList availableServiceList = edgeApplicationConnector.getAvailableServices();
             for(EdgeApplicationServiceDescriptor serviceDescriptor : availableServiceList.getServiceList()){
                 logger.info("Service Info: {}", serviceDescriptor);
             }
 
-            final EdgeApplicationSubscriptionList subscriptions = edgeApplicationConnector.getSubscriptions();
+            logger.info("Getting subscritpions...");
+            final SubscriptionList subscriptions = edgeApplicationConnector.getSubscriptions();
             if (subscriptions.getSubscriptions() == null) {
                 logger.info("No subscriptions");
             } else {
-                for (EdgeApplicationSubscription s : subscriptions.getSubscriptions()) {
+                for (Subscription s : subscriptions.getSubscriptions()) {
                     logger.info("Subscription Info: {}", s);
                 }
             }
 
-            edgeApplicationConnector.postNotification(new NotificationFromProducer(
+            final NotificationFromProducer notification1 = new NotificationFromProducer(
                     "fake notification 1",
                     "0.0.1",
                     new NotificationPayload("fake payload 1")
-            ));
+            );
+            logger.info("Posting notification: {}", notification1);
+            edgeApplicationConnector.postNotification(notification1);
 
             // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
-            //final boolean ok = edgeApplicationConnector.getNotifications(nameSpace, applicationId);  // ERROR 400 (bad request) with https, "ws/wss protocol not supported" with ws/wss
-            //edgeApplicationConnector.establishWebsocket("notifications");  // ERROR connection refused
+            logger.info("Booting websocket for getting notifications...");
+            //final NotificationsHandle notificationsHandle = edgeApplicationConnector.getNotifications();
 
             // "The consumer application must establish a Websocket before subscribing to services." (https://www.openness.org/docs/doc/applications/openness_appguide#service-activation)
-            edgeApplicationConnector.postSubscription(notifications, applicationId, nameSpace);  // ERROR 500
-            //edgeApplicationConnector.postSubscription(notificationDescriptor1, "", nameSpace);  // ERROR 500
-            //edgeApplicationConnector.postSubscription(notificationDescriptor1, "", "");  // ERROR 405 (method not allowed)
+            logger.info("Posting subscription(s): {}", notifications);
+            edgeApplicationConnector.postSubscription(notifications, nameSpace, applicationId);
+            logger.info("Again: {}", notifications);
+            edgeApplicationConnector.postSubscription(notifications, nameSpace);
 
-            edgeApplicationConnector.postNotification(new NotificationFromProducer(
+            final NotificationFromProducer notification2 = new NotificationFromProducer(
                     "fake notification 2",
                     "0.0.2",
                     new NotificationPayload("fake payload 2")
-            ));
+            );
+            logger.info("Posting notification: {}", notification2);
+            edgeApplicationConnector.postNotification(notification2);
 
         } catch (Exception e) {
             e.printStackTrace();
