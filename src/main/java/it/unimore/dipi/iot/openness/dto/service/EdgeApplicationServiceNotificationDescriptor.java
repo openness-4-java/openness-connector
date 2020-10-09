@@ -1,5 +1,7 @@
 package it.unimore.dipi.iot.openness.dto.service;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * @author Marco Picone, Ph.D. - picone.m@gmail.com
  * @project openness-connector
@@ -7,10 +9,13 @@ package it.unimore.dipi.iot.openness.dto.service;
  */
 public class EdgeApplicationServiceNotificationDescriptor {
 
+    @JsonProperty("name")
     private String name;
 
+    @JsonProperty("version")
     private String version;
 
+    @JsonProperty("description")
     private String description;
 
     public EdgeApplicationServiceNotificationDescriptor() {

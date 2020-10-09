@@ -1,11 +1,10 @@
 package it.unimore.dipi.iot.openness.connector;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
 import it.unimore.dipi.iot.openness.dto.service.*;
 import it.unimore.dipi.iot.openness.exception.EdgeApplicationConnectorException;
-import org.apache.http.client.ClientProtocolException;
+import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -16,11 +15,15 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * @author Marco Picone, Ph.D. - picone.m@gmail.com
@@ -38,12 +41,14 @@ public class EdgeApplicationConnector {
     private ObjectMapper objectMapper;
 
     private String edgeApplicationServiceEndpoint;
+    private String edgeApplicationServiceWsEndpoint;
 
-    public EdgeApplicationConnector(String edgeApplicationServiceEndpoint, AuthorizedApplicationConfiguration authorizedApplicationConfiguration) throws EdgeApplicationConnectorException {
+    public EdgeApplicationConnector(String edgeApplicationServiceEndpoint, AuthorizedApplicationConfiguration authorizedApplicationConfiguration, final String edgeApplicationServiceWsEndpoint) throws EdgeApplicationConnectorException {
 
         try{
 
             this.edgeApplicationServiceEndpoint = edgeApplicationServiceEndpoint;
+            this.edgeApplicationServiceWsEndpoint = edgeApplicationServiceWsEndpoint;
             this.authorizedApplicationConfiguration = authorizedApplicationConfiguration;
             this.objectMapper = new ObjectMapper();
 
@@ -139,6 +144,90 @@ public class EdgeApplicationConnector {
             }
         } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
             throw new EdgeApplicationConnectorException(String.format("Error getting Subscriptions ! Cause: %s -> Msg: %s",
+                    e.getCause(), e.getLocalizedMessage()));
+        }
+    }
+
+    public void postSubscription(final List<EdgeApplicationServiceNotificationDescriptor> notifications, final String applicationId, final String nameSpace) throws EdgeApplicationConnectorException {
+        String targetUrl;  // When the consumer application decides on a particular service that it would like to subscribe to, it should call POST /subscriptions/{urn.namespace} to subscribe to all services available in a namespace or call POST /subscriptions/{urn.namespace}/{urn.id} to subscribe to notifications related to the exact producer.
+        if (nameSpace != "") {
+            if (applicationId != "") {
+                targetUrl = String.format("%ssubscriptions/%s/%s", this.edgeApplicationServiceEndpoint, nameSpace, applicationId);
+            } else {
+                targetUrl = String.format("%ssubscriptions/%s", this.edgeApplicationServiceEndpoint, nameSpace);
+            }
+        } else {
+            targetUrl = String.format("%ssubscriptions", this.edgeApplicationServiceEndpoint);
+        }
+        final HttpPost postSubscription = new HttpPost(targetUrl);
+        logger.debug("Post subscription - Target Url: {}", targetUrl);
+        try {
+            final String notificationDescriptorJsonString = this.objectMapper.writeValueAsString(notifications);
+            logger.debug(notificationDescriptorJsonString);
+            postSubscription.setEntity(new StringEntity(notificationDescriptorJsonString));
+            final CloseableHttpResponse response = httpClient.execute(postSubscription);
+            if (response != null && response.getStatusLine().getStatusCode() == 201) {
+                logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
+            } else {
+                logger.error("Wrong Response Received !");
+                throw getEdgeApplicationConnectorException(response, "Error posting Service ! Status Code: %d -> Response Body: %s");
+            }
+        } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
+            throw new EdgeApplicationConnectorException(String.format("Error posting Notification ! Cause: %s -> Msg: %s",
+                    e.getCause(), e.getLocalizedMessage()));
+        }
+    }
+
+    public boolean getNotifications(final String nameSpace, final String applicationId) throws EdgeApplicationConnectorException {  // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
+        final String targetUrl = String.format("%snotifications", this.edgeApplicationServiceEndpoint);  // or this.edgeApplicationServiceWsEndpoint ? ERROR 400 (bad request) with https, "ws/wss protocol not supported" with ws/wss
+        logger.debug("Get Notifications - Target Url: {}", targetUrl);
+        final HttpGet getNotifications = new HttpGet(targetUrl);
+        getNotifications.addHeader(HttpHeaders.CONNECTION, "Upgrade");
+        getNotifications.addHeader(HttpHeaders.UPGRADE, "websocket");
+        getNotifications.addHeader(HttpHeaders.HOST, String.format("%s:%s", nameSpace, applicationId));
+        getNotifications.addHeader("Sec-Websocket-Version", "13");
+        getNotifications.addHeader("Sec-Websocket-Key", "xqBt3ImNzJbYqRINxEFlkg==");
+        Future<CloseableHttpResponse> openWsTask = Executors.newSingleThreadExecutor().submit(new Callable<CloseableHttpResponse>() {
+            @Override
+            public CloseableHttpResponse call() throws Exception {
+                final CloseableHttpResponse response = httpClient.execute(getNotifications);
+                if (response != null && response.getStatusLine().getStatusCode() == 101) {
+                    logger.debug("[Executor] Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
+                } else {
+                    logger.error("[Executor] Wrong Response Received !");
+                    throw getEdgeApplicationConnectorException(response, "Error getting Notifications ! Status Code: %d -> Response Body: %s");
+                }
+                return response;
+            }
+        });
+        return true;
+            /*final CloseableHttpResponse response = openWsTask.get();
+            if (response != null && response.getStatusLine().getStatusCode() == 101) {
+                logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
+                return true;
+            } else {
+                logger.error("Wrong Response Received !");
+                throw getEdgeApplicationConnectorException(response, "Error getting Notifications ! Status Code: %d -> Response Body: %s");
+            }*/
+    }
+
+    public void postNotification(final NotificationFromProducer notification) throws EdgeApplicationConnectorException {
+        final String targetUrl = String.format("%snotifications", this.edgeApplicationServiceEndpoint);
+        logger.debug("Post notification - Target Url: {}", targetUrl);
+        final HttpPost postNotification = new HttpPost(targetUrl);
+        try {
+            final String notificationJsonString = this.objectMapper.writeValueAsString(notification);
+            logger.debug(notificationJsonString);
+            postNotification.setEntity(new StringEntity(notificationJsonString));
+            final CloseableHttpResponse response = httpClient.execute(postNotification);
+            if (response != null && response.getStatusLine().getStatusCode() == 202) {
+                logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
+            } else {
+                logger.error("Wrong Response Received !");
+                throw getEdgeApplicationConnectorException(response, "Error posting Service ! Status Code: %d -> Response Body: %s");
+            }
+        } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
+            throw new EdgeApplicationConnectorException(String.format("Error posting Notification ! Cause: %s -> Msg: %s",
                     e.getCause(), e.getLocalizedMessage()));
         }
     }
