@@ -15,14 +15,6 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.messaging.converter.MappingJackson2MessageConverter;
-import org.springframework.messaging.simp.stomp.StompSession;
-import org.springframework.messaging.simp.stomp.StompSessionHandler;
-import org.springframework.util.concurrent.ListenableFuture;
-import org.springframework.web.socket.client.WebSocketClient;
-import org.springframework.web.socket.client.jetty.JettyWebSocketClient;
-import org.springframework.web.socket.client.standard.StandardWebSocketClient;
-import org.springframework.web.socket.messaging.WebSocketStompClient;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
@@ -30,7 +22,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
@@ -51,7 +42,6 @@ public class EdgeApplicationConnector {
 
     private String edgeApplicationServiceEndpoint;
     private String edgeApplicationServiceWsEndpoint;
-    private final HashMap<String, Object> userProperties;
 
     public EdgeApplicationConnector(String edgeApplicationServiceEndpoint, AuthorizedApplicationConfiguration authorizedApplicationConfiguration, final String edgeApplicationServiceWsEndpoint) throws EdgeApplicationConnectorException {
 
@@ -72,11 +62,6 @@ public class EdgeApplicationConnector {
                             new File(this.authorizedApplicationConfiguration.getTrustStoreFilePath())
                     )
                     .build();
-            logger.error("########################### {}", this.authorizedApplicationConfiguration.getKeyStoreFilePath());
-            logger.error("########################### {}", this.authorizedApplicationConfiguration.getTrustStoreFilePath());
-
-            this.userProperties = new HashMap<>();
-            //this.userProperties.put(Constants.SSL_CONTEXT_PROPERTY, sslContext);
 
             httpClient = HttpClients.custom()
                     .setSSLContext(sslContext)
@@ -224,27 +209,6 @@ public class EdgeApplicationConnector {
                 logger.error("Wrong Response Received !");
                 throw getEdgeApplicationConnectorException(response, "Error getting Notifications ! Status Code: %d -> Response Body: %s");
             }*/
-    }
-
-    public void establishWebsocket(final String path) {
-        logger.info("Establishing WS connection, target: {}{}", this.edgeApplicationServiceWsEndpoint, path);
-        final WebSocketClient client = new StandardWebSocketClient();
-        ((StandardWebSocketClient) client).setUserProperties(this.userProperties);
-        final WebSocketStompClient stompClient = new WebSocketStompClient(client);
-        stompClient.setMessageConverter(new MappingJackson2MessageConverter());
-        final StompSessionHandler sessionHandler = new NotificationsStompSessionHandler();
-        String target;
-        if (path != "") {
-            target = String.format("%s%s", this.edgeApplicationServiceWsEndpoint, path);
-        } else {
-            target = this.edgeApplicationServiceWsEndpoint;
-        }
-        ListenableFuture<StompSession> willConnect = stompClient.connect(target, sessionHandler);
-        willConnect.addCallback(
-                x -> logger.info("Success: {}", x),
-                x -> logger.info("Failure: {} -> {}", x.getCause(), x.getLocalizedMessage())
-        );
-        //new Scanner(System.in).nextLine(); // Don't close immediately.
     }
 
     public void postNotification(final NotificationFromProducer notification) throws EdgeApplicationConnectorException {
