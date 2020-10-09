@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Marco Picone, Ph.D. - picone.m@gmail.com
@@ -100,7 +101,7 @@ public class OpenNessConnectorTester {
 
             // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
             logger.info("Booting websocket for getting notifications...");
-            //final NotificationsHandle notificationsHandle = edgeApplicationConnector.getNotifications();
+            final NotificationsHandle notificationsHandle = edgeApplicationConnector.getNotificationsWebSocket(nameSpace, applicationId, "notifications");
 
             // "The consumer application must establish a Websocket before subscribing to services." (https://www.openness.org/docs/doc/applications/openness_appguide#service-activation)
             logger.info("Posting subscription(s): {}", notifications);
@@ -115,6 +116,16 @@ public class OpenNessConnectorTester {
             );
             logger.info("Posting notification: {}", notification2);
             edgeApplicationConnector.postNotification(notification2);
+
+            final NotificationFromProducer notification22 = new NotificationFromProducer(
+                    "fake notification 2",
+                    "0.0.2",
+                    new NotificationPayload("fake payload 22")
+            );
+            logger.info("Posting notification: {}", notification22);
+            edgeApplicationConnector.postNotification(notification22);
+
+            notificationsHandle.awaitClose(5, TimeUnit.SECONDS);  // TODO when to close? how long to wait?
 
         } catch (Exception e) {
             e.printStackTrace();

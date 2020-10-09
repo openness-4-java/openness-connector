@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
 import it.unimore.dipi.iot.openness.dto.service.*;
 import it.unimore.dipi.iot.openness.exception.EdgeApplicationConnectorException;
-import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -13,16 +12,19 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.http.util.EntityUtils;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
+import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Marco Picone, Ph.D. - picone.m@gmail.com
@@ -41,6 +43,8 @@ public class EdgeApplicationConnector {
 
     private String edgeApplicationServiceEndpoint;
     private String edgeApplicationServiceWsEndpoint;
+    private final SSLContext sslContext;
+    private final WebSocketClient wsClient;
 
     public EdgeApplicationConnector(String edgeApplicationServiceEndpoint, AuthorizedApplicationConfiguration authorizedApplicationConfiguration, final String edgeApplicationServiceWsEndpoint) throws EdgeApplicationConnectorException {
 
@@ -51,7 +55,7 @@ public class EdgeApplicationConnector {
             this.authorizedApplicationConfiguration = authorizedApplicationConfiguration;
             this.objectMapper = new ObjectMapper();
 
-            SSLContext sslContext = SSLContexts.custom()
+            this.sslContext = SSLContexts.custom()
                     .loadKeyMaterial(
                             new File(this.authorizedApplicationConfiguration.getKeyStoreFilePath()),
                             this.authorizedApplicationConfiguration.getStorePassword().toCharArray(),
@@ -65,6 +69,13 @@ public class EdgeApplicationConnector {
             httpClient = HttpClients.custom()
                     .setSSLContext(sslContext)
                     .build();
+
+            SslContextFactory ssl = new SslContextFactory.Client(true);
+            ssl.setKeyStorePath(this.authorizedApplicationConfiguration.getKeyStoreFilePath());  // was "certs/5b5c0eaec10b708888c225e366f2f1239ea0541e4d687d644cfcd98c26fc312b.client.p12"
+            ssl.setTrustStorePath(this.authorizedApplicationConfiguration.getTrustStoreFilePath());  // was "certs/5b5c0eaec10b708888c225e366f2f1239ea0541e4d687d644cfcd98c26fc312b.ca.jks"
+            ssl.setKeyStorePassword("changeit");  // TODO how to not hard-code?
+            final HttpClient client = new HttpClient(ssl);
+            this.wsClient = new WebSocketClient(client);
 
         }catch (Exception e){
             throw new EdgeApplicationConnectorException("Error initializing the connector ! Error: " + e.getLocalizedMessage());
@@ -181,9 +192,19 @@ public class EdgeApplicationConnector {
         }
     }
 
-    public NotificationsHandle getNotifications() throws EdgeApplicationConnectorException {
+    public NotificationsHandle getNotificationsWebSocket(final String namespace, final String applicationId, final String endpoint) throws EdgeApplicationConnectorException {
         final NotificationsHandle notificationsHandle = new NotificationsHandle();
-
+        try {
+            this.wsClient.start();
+            final URI uri = new URI(String.format("%s%s", this.edgeApplicationServiceWsEndpoint, endpoint));  // was "wss://eaa.openness:7443/notifications"
+            final ClientUpgradeRequest request = new ClientUpgradeRequest();
+            request.setHeader("Host", String.format("%s:%s", namespace, applicationId));
+            this.wsClient.connect(notificationsHandle, uri, request);
+            //notificationsHandle.awaitClose(300, TimeUnit.SECONDS);  // TODO this should be done in client class, imho
+        } catch (Exception e) {
+            throw new EdgeApplicationConnectorException(String.format("Error getting Notifications websocket ! Cause: %s -> Msg: %s",
+                    e.getCause(), e.getLocalizedMessage()));
+        }
         return notificationsHandle;
     }
 

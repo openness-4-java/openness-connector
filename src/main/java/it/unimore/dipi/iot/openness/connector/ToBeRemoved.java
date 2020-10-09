@@ -8,7 +8,7 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import java.net.URI;
 import java.util.concurrent.TimeUnit;
 
-public class WebSocketTest {
+public class ToBeRemoved {
 
     public static void main(String[] args) {
         SslContextFactory ssl = new SslContextFactory.Client(true);
