@@ -9,7 +9,7 @@ import java.util.List;
  * @project openness-connector
  * @created 07/10/2020 - 14:03
  */
-public class EdgeApplicationSubscription {
+public class Subscription {
 
     @JsonProperty("urn")
     private EdgeApplicationServiceUrn urn;
@@ -17,9 +17,9 @@ public class EdgeApplicationSubscription {
     @JsonProperty("notifications")
     private List<EdgeApplicationServiceNotificationDescriptor> notificationDescriptorList;
 
-    public EdgeApplicationSubscription() { }
+    public Subscription() { }
 
-    public EdgeApplicationSubscription(final EdgeApplicationServiceUrn urn, final List<EdgeApplicationServiceNotificationDescriptor> notificationDescriptorList) {
+    public Subscription(final EdgeApplicationServiceUrn urn, final List<EdgeApplicationServiceNotificationDescriptor> notificationDescriptorList) {
         this.urn = urn;
         this.notificationDescriptorList = notificationDescriptorList;
     }

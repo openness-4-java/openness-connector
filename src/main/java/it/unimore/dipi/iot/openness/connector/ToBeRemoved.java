@@ -8,7 +8,7 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import java.net.URI;
 import java.util.concurrent.TimeUnit;
 
-public class WebSocketHandle {
+public class ToBeRemoved {
 
     public static void main(String[] args) {
         SslContextFactory ssl = new SslContextFactory.Client(true);
@@ -17,7 +17,7 @@ public class WebSocketHandle {
         ssl.setKeyStorePassword("changeit");
         HttpClient http = new HttpClient(ssl);
         WebSocketClient client = new WebSocketClient(http);
-        SimpleEchoSocket socket = new SimpleEchoSocket();
+        NotificationsHandle socket = new NotificationsHandle();
         try
         {
             client.start();

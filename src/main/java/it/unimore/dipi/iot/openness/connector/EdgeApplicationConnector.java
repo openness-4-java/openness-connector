@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
 import it.unimore.dipi.iot.openness.dto.service.*;
 import it.unimore.dipi.iot.openness.exception.EdgeApplicationConnectorException;
-import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -13,17 +12,19 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.http.util.EntityUtils;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
+import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
+import java.net.URI;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Marco Picone, Ph.D. - picone.m@gmail.com
@@ -42,6 +43,8 @@ public class EdgeApplicationConnector {
 
     private String edgeApplicationServiceEndpoint;
     private String edgeApplicationServiceWsEndpoint;
+    private final SSLContext sslContext;
+    private final WebSocketClient wsClient;
 
     public EdgeApplicationConnector(String edgeApplicationServiceEndpoint, AuthorizedApplicationConfiguration authorizedApplicationConfiguration, final String edgeApplicationServiceWsEndpoint) throws EdgeApplicationConnectorException {
 
@@ -52,7 +55,7 @@ public class EdgeApplicationConnector {
             this.authorizedApplicationConfiguration = authorizedApplicationConfiguration;
             this.objectMapper = new ObjectMapper();
 
-            SSLContext sslContext = SSLContexts.custom()
+            this.sslContext = SSLContexts.custom()
                     .loadKeyMaterial(
                             new File(this.authorizedApplicationConfiguration.getKeyStoreFilePath()),
                             this.authorizedApplicationConfiguration.getStorePassword().toCharArray(),
@@ -66,6 +69,13 @@ public class EdgeApplicationConnector {
             httpClient = HttpClients.custom()
                     .setSSLContext(sslContext)
                     .build();
+
+            SslContextFactory ssl = new SslContextFactory.Client(true);
+            ssl.setKeyStorePath(this.authorizedApplicationConfiguration.getKeyStoreFilePath());  // was "certs/5b5c0eaec10b708888c225e366f2f1239ea0541e4d687d644cfcd98c26fc312b.client.p12"
+            ssl.setTrustStorePath(this.authorizedApplicationConfiguration.getTrustStoreFilePath());  // was "certs/5b5c0eaec10b708888c225e366f2f1239ea0541e4d687d644cfcd98c26fc312b.ca.jks"
+            ssl.setKeyStorePassword("changeit");  // TODO how to not hard-code?
+            final HttpClient client = new HttpClient(ssl);
+            this.wsClient = new WebSocketClient(client);
 
         }catch (Exception e){
             throw new EdgeApplicationConnectorException("Error initializing the connector ! Error: " + e.getLocalizedMessage());
@@ -127,7 +137,7 @@ public class EdgeApplicationConnector {
         }
     }
 
-    public EdgeApplicationSubscriptionList getSubscriptions() throws EdgeApplicationConnectorException {
+    public SubscriptionList getSubscriptions() throws EdgeApplicationConnectorException {
         final String targetUrl = String.format("%ssubscriptions", this.edgeApplicationServiceEndpoint);
         logger.debug("Get Subscriptions - Target Url: {}", targetUrl);
         final HttpGet getSubscriptions = new HttpGet(targetUrl);
@@ -137,7 +147,7 @@ public class EdgeApplicationConnector {
                 final String body = EntityUtils.toString(response.getEntity());
                 logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
                 logger.debug("Response Body: {}", body);
-                return objectMapper.readValue(body, EdgeApplicationSubscriptionList.class);
+                return objectMapper.readValue(body, SubscriptionList.class);
             } else {
                 logger.error("Wrong Response Received !");
                 throw getEdgeApplicationConnectorException(response, "Error getting Subscriptions ! Status Code: %d -> Response Body: %s");
@@ -148,10 +158,14 @@ public class EdgeApplicationConnector {
         }
     }
 
-    public void postSubscription(final List<EdgeApplicationServiceNotificationDescriptor> notifications, final String applicationId, final String nameSpace) throws EdgeApplicationConnectorException {
+    public void postSubscription(final List<EdgeApplicationServiceNotificationDescriptor> notifications, final String nameSpace)  throws EdgeApplicationConnectorException {
+        this.postSubscription(notifications, nameSpace, "");
+    }
+
+    public void postSubscription(final List<EdgeApplicationServiceNotificationDescriptor> notifications, final String nameSpace, final String applicationId) throws EdgeApplicationConnectorException {
         String targetUrl;  // When the consumer application decides on a particular service that it would like to subscribe to, it should call POST /subscriptions/{urn.namespace} to subscribe to all services available in a namespace or call POST /subscriptions/{urn.namespace}/{urn.id} to subscribe to notifications related to the exact producer.
-        if (nameSpace != "") {
-            if (applicationId != "") {
+        if (!nameSpace.equals("")) {
+            if (!applicationId.equals("")) {
                 targetUrl = String.format("%ssubscriptions/%s/%s", this.edgeApplicationServiceEndpoint, nameSpace, applicationId);
             } else {
                 targetUrl = String.format("%ssubscriptions/%s", this.edgeApplicationServiceEndpoint, nameSpace);
@@ -178,37 +192,20 @@ public class EdgeApplicationConnector {
         }
     }
 
-    public boolean getNotifications(final String nameSpace, final String applicationId) throws EdgeApplicationConnectorException {  // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
-        final String targetUrl = String.format("%snotifications", this.edgeApplicationServiceEndpoint);  // or this.edgeApplicationServiceWsEndpoint ? ERROR 400 (bad request) with https, "ws/wss protocol not supported" with ws/wss
-        logger.debug("Get Notifications - Target Url: {}", targetUrl);
-        final HttpGet getNotifications = new HttpGet(targetUrl);
-        getNotifications.addHeader(HttpHeaders.CONNECTION, "Upgrade");
-        getNotifications.addHeader(HttpHeaders.UPGRADE, "websocket");
-        getNotifications.addHeader(HttpHeaders.HOST, String.format("%s:%s", nameSpace, applicationId));
-        getNotifications.addHeader("Sec-Websocket-Version", "13");
-        getNotifications.addHeader("Sec-Websocket-Key", "xqBt3ImNzJbYqRINxEFlkg==");
-        Future<CloseableHttpResponse> openWsTask = Executors.newSingleThreadExecutor().submit(new Callable<CloseableHttpResponse>() {
-            @Override
-            public CloseableHttpResponse call() throws Exception {
-                final CloseableHttpResponse response = httpClient.execute(getNotifications);
-                if (response != null && response.getStatusLine().getStatusCode() == 101) {
-                    logger.debug("[Executor] Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
-                } else {
-                    logger.error("[Executor] Wrong Response Received !");
-                    throw getEdgeApplicationConnectorException(response, "Error getting Notifications ! Status Code: %d -> Response Body: %s");
-                }
-                return response;
-            }
-        });
-        return true;
-            /*final CloseableHttpResponse response = openWsTask.get();
-            if (response != null && response.getStatusLine().getStatusCode() == 101) {
-                logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
-                return true;
-            } else {
-                logger.error("Wrong Response Received !");
-                throw getEdgeApplicationConnectorException(response, "Error getting Notifications ! Status Code: %d -> Response Body: %s");
-            }*/
+    public NotificationsHandle getNotificationsWebSocket(final String namespace, final String applicationId, final String endpoint) throws EdgeApplicationConnectorException {
+        final NotificationsHandle notificationsHandle = new NotificationsHandle();
+        try {
+            this.wsClient.start();
+            final URI uri = new URI(String.format("%s%s", this.edgeApplicationServiceWsEndpoint, endpoint));  // was "wss://eaa.openness:7443/notifications"
+            final ClientUpgradeRequest request = new ClientUpgradeRequest();
+            request.setHeader("Host", String.format("%s:%s", namespace, applicationId));
+            this.wsClient.connect(notificationsHandle, uri, request);
+            //notificationsHandle.awaitClose(300, TimeUnit.SECONDS);  // TODO this should be done in client class, imho
+        } catch (Exception e) {
+            throw new EdgeApplicationConnectorException(String.format("Error getting Notifications websocket ! Cause: %s -> Msg: %s",
+                    e.getCause(), e.getLocalizedMessage()));
+        }
+        return notificationsHandle;
     }
 
     public void postNotification(final NotificationFromProducer notification) throws EdgeApplicationConnectorException {

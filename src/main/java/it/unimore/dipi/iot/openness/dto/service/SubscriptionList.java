@@ -9,23 +9,23 @@ import java.util.List;
  * @project openness-connector
  * @created 07/10/2020 - 14:03
  */
-public class EdgeApplicationSubscriptionList {
+public class SubscriptionList {
 
     @JsonProperty("subscriptions")
-    private List<EdgeApplicationSubscription> subscriptions;
+    private List<Subscription> subscriptions;
 
-    public EdgeApplicationSubscriptionList() {
+    public SubscriptionList() {
     }
 
-    public EdgeApplicationSubscriptionList(final List<EdgeApplicationSubscription> subscriptions) {
+    public SubscriptionList(final List<Subscription> subscriptions) {
         this.subscriptions = subscriptions;
     }
 
-    public List<EdgeApplicationSubscription> getSubscriptions() {
+    public List<Subscription> getSubscriptions() {
         return subscriptions;
     }
 
-    public void setSubscriptions(final List<EdgeApplicationSubscription> subscriptions) {
+    public void setSubscriptions(final List<Subscription> subscriptions) {
         this.subscriptions = subscriptions;
     }
 
