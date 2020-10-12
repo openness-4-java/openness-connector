@@ -1,6 +1,5 @@
 package it.unimore.dipi.iot.openness.connector;
 
-import it.unimore.dipi.iot.openness.dto.service.NotificationToSubscriber;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.*;
 import org.slf4j.Logger;

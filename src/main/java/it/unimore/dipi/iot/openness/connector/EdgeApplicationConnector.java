@@ -24,7 +24,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author Marco Picone, Ph.D. - picone.m@gmail.com
@@ -73,7 +72,8 @@ public class EdgeApplicationConnector {
             SslContextFactory ssl = new SslContextFactory.Client(true);
             ssl.setKeyStorePath(this.authorizedApplicationConfiguration.getKeyStoreFilePath());  // was "certs/5b5c0eaec10b708888c225e366f2f1239ea0541e4d687d644cfcd98c26fc312b.client.p12"
             ssl.setTrustStorePath(this.authorizedApplicationConfiguration.getTrustStoreFilePath());  // was "certs/5b5c0eaec10b708888c225e366f2f1239ea0541e4d687d644cfcd98c26fc312b.ca.jks"
-            ssl.setKeyStorePassword("changeit");  // TODO how to not hard-code?
+            ssl.setKeyStorePassword(this.authorizedApplicationConfiguration.getStorePassword());
+
             final HttpClient client = new HttpClient(ssl);
             this.wsClient = new WebSocketClient(client);
 
