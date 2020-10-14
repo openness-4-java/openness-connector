@@ -7,9 +7,9 @@ import java.util.Objects;
 /**
  * @author Stefano Mariani, Ph.D. - stefano.mariani@unimore.it
  * @project openness-connector
- * @created 07/10/2020 - 15:24
+ * @created 14/10/2020 - 12:31
  */
-public class NotificationFromProducer {
+public class TerminateNotification {
 
     @JsonProperty("name")
     private String name;
@@ -20,13 +20,10 @@ public class NotificationFromProducer {
     @JsonProperty("payload")
     private NotificationPayload payload;
 
-    public NotificationFromProducer() {
-    }
-
-    public NotificationFromProducer(final String name, final String version, final NotificationPayload payload) {
-        this.name = name;
-        this.version = version;
-        this.payload = payload;
+    public TerminateNotification() {
+        this.name = "terminate";
+        this.version = "1.0.0";
+        this.payload = new NotificationPayload("");
     }
 
     public String getName() {
@@ -55,10 +52,10 @@ public class NotificationFromProducer {
 
     @Override
     public String toString() {
-        return "Notification{" +
+        return "TerminateNotifcation{" +
                 "name='" + name + '\'' +
                 ", version='" + version + '\'' +
-                ", payload=" + payload +
+                ", payload='" + payload + '\'' +
                 '}';
     }
 

@@ -2,6 +2,8 @@ package it.unimore.dipi.iot.openness.dto.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Objects;
+
 /**
  * @author Stefano Mariani, Ph.D. - stefano.mariani@unimore.it
  * @project openness-connector
@@ -18,17 +20,17 @@ public class NotificationToSubscriber {
     @JsonProperty("payload")
     private NotificationPayload payload;
 
-    @JsonProperty("urn")
-    private EdgeApplicationServiceUrn urn;
+    @JsonProperty("producer")
+    private EdgeApplicationServiceUrn producer;
 
     public NotificationToSubscriber() {
     }
 
-    public NotificationToSubscriber(final String name, final String version, final NotificationPayload payload, final EdgeApplicationServiceUrn urn) {
+    public NotificationToSubscriber(final String name, final String version, final NotificationPayload payload, final EdgeApplicationServiceUrn producer) {
         this.name = name;
         this.version = version;
         this.payload = payload;
-        this.urn = urn;
+        this.producer = producer;
     }
 
     public String getName() {
@@ -55,12 +57,12 @@ public class NotificationToSubscriber {
         this.payload = payload;
     }
 
-    public EdgeApplicationServiceUrn getUrn() {
-        return urn;
+    public EdgeApplicationServiceUrn getProducer() {
+        return producer;
     }
 
-    public void setUrn(final EdgeApplicationServiceUrn urn) {
-        this.urn = urn;
+    public void setProducer(final EdgeApplicationServiceUrn producer) {
+        this.producer = producer;
     }
 
     @Override
@@ -69,7 +71,7 @@ public class NotificationToSubscriber {
                 "name='" + name + '\'' +
                 ", version='" + version + '\'' +
                 ", payload=" + payload +
-                ", urn=" + urn +
+                ", urn=" + producer +
                 '}';
     }
 

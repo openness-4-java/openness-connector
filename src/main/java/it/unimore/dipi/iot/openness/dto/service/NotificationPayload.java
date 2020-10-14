@@ -2,6 +2,8 @@ package it.unimore.dipi.iot.openness.dto.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Objects;
+
 /**
  * @author Stefano Mariani, Ph.D. - stefano.mariani@unimore.it
  * @project openness-connector

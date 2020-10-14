@@ -30,8 +30,8 @@ public class OpenNessConnectorTester {
             String OPENNESS_CONTROLLER_BASE_APP_URL = "https://eaa.openness:7443/";
             String OPENNESS_CONTROLLER_BASE_APP_WS_URL = "wss://eaa.openness:7443/";
 
-            String applicationId = "OpenNessConnectorTester";
-            String nameSpace = "testing";
+            String applicationId = "OpenNessConnectorTester_v2";
+            String nameSpace = "testing_v2";
             String organizationName =  "DIPIUniMore";
 
             AuthorizedApplicationConfiguration authorizedApplicationConfiguration;
@@ -81,8 +81,8 @@ public class OpenNessConnectorTester {
                 logger.info("Service Info: {}", serviceDescriptor);
             }
 
-            logger.info("Getting subscritpions...");
-            final SubscriptionList subscriptions = edgeApplicationConnector.getSubscriptions();
+            logger.info("Getting subscriptions...");
+            SubscriptionList subscriptions = edgeApplicationConnector.getSubscriptions();
             if (subscriptions.getSubscriptions() == null) {
                 logger.info("No subscriptions");
             } else {
@@ -101,13 +101,23 @@ public class OpenNessConnectorTester {
 
             // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
             logger.info("Booting websocket for getting notifications...");
-            final NotificationsHandle notificationsHandle = edgeApplicationConnector.getNotificationsWebSocket(nameSpace, applicationId, "notifications");
+            final NotificationsHandle notificationsHandle = edgeApplicationConnector.getNotificationsWS(nameSpace, applicationId, "notifications");
 
             // "The consumer application must establish a Websocket before subscribing to services." (https://www.openness.org/docs/doc/applications/openness_appguide#service-activation)
             logger.info("Posting subscription(s): {}", notifications);
             edgeApplicationConnector.postSubscription(notifications, nameSpace, applicationId);
             logger.info("Again: {}", notifications);
             edgeApplicationConnector.postSubscription(notifications, nameSpace);
+
+            logger.info("Getting subscriptions...");
+            subscriptions = edgeApplicationConnector.getSubscriptions();
+            if (subscriptions.getSubscriptions() == null) {
+                logger.info("No subscriptions");
+            } else {
+                for (Subscription s : subscriptions.getSubscriptions()) {
+                    logger.info("Subscription Info: {}", s);
+                }
+            }
 
             final NotificationFromProducer notification2 = new NotificationFromProducer(
                     "fake notification 2",
@@ -125,7 +135,34 @@ public class OpenNessConnectorTester {
             logger.info("Posting notification: {}", notification22);
             edgeApplicationConnector.postNotification(notification22);
 
-            notificationsHandle.awaitClose(5, TimeUnit.SECONDS);  // TODO when to close? how long to wait?
+            /* NOT WORKING, NOT SUBSCRIBED YET...(this is intended behaviour) */
+            logger.info("Terminating notifications websocket...");
+            edgeApplicationConnector.terminateNotificationsWS();
+            notificationsHandle.awaitClose(5, TimeUnit.SECONDS);
+
+            notifications.clear();
+            notifications.add(new EdgeApplicationServiceNotificationDescriptor(
+                    "terminate",
+                    "1.0.0",
+                    "To get termination requests"
+            ));
+            logger.info("Posting subscription(s): {}", notifications);
+            edgeApplicationConnector.postSubscription(notifications, nameSpace, applicationId);
+
+            logger.info("Getting subscriptions...");
+            subscriptions = edgeApplicationConnector.getSubscriptions();
+            if (subscriptions.getSubscriptions() == null) {
+                logger.info("No subscriptions");
+            } else {
+                for (Subscription s : subscriptions.getSubscriptions()) {
+                    logger.info("Subscription Info: {}", s);
+                }
+            }
+
+            /* NOW WORKING, NOW SUBSCRIBED */
+            logger.info("Terminating notifications websocket...");
+            edgeApplicationConnector.terminateNotificationsWS();
+            notificationsHandle.awaitClose(5, TimeUnit.SECONDS);
 
         } catch (Exception e) {
             e.printStackTrace();

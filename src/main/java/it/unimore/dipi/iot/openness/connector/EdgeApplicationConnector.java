@@ -70,8 +70,8 @@ public class EdgeApplicationConnector {
                     .build();
 
             SslContextFactory ssl = new SslContextFactory.Client(true);
-            ssl.setKeyStorePath(this.authorizedApplicationConfiguration.getKeyStoreFilePath());  // was "certs/5b5c0eaec10b708888c225e366f2f1239ea0541e4d687d644cfcd98c26fc312b.client.p12"
-            ssl.setTrustStorePath(this.authorizedApplicationConfiguration.getTrustStoreFilePath());  // was "certs/5b5c0eaec10b708888c225e366f2f1239ea0541e4d687d644cfcd98c26fc312b.ca.jks"
+            ssl.setKeyStorePath(this.authorizedApplicationConfiguration.getKeyStoreFilePath());
+            ssl.setTrustStorePath(this.authorizedApplicationConfiguration.getTrustStoreFilePath());
             ssl.setKeyStorePassword(this.authorizedApplicationConfiguration.getStorePassword());
 
             final HttpClient client = new HttpClient(ssl);
@@ -98,7 +98,7 @@ public class EdgeApplicationConnector {
 
                 String bodyString = EntityUtils.toString(response.getEntity());
 
-                logger.debug("Application Authentication Response Code: {}", response.getStatusLine().getStatusCode());
+                logger.debug("Getting available Services Response Code: {}", response.getStatusLine().getStatusCode());
                 logger.debug("Response Body: {}", bodyString);
 
                 return objectMapper.readValue(bodyString, EdgeApplicationServiceList.class);
@@ -126,7 +126,7 @@ public class EdgeApplicationConnector {
             postService.setEntity(new StringEntity(serviceJsonString));
             final CloseableHttpResponse response = httpClient.execute(postService);
             if (response != null && response.getStatusLine().getStatusCode() == 200) {
-                logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
+                logger.debug("Posting service Response Code: {}", response.getStatusLine().getStatusCode());
             } else {
                 logger.error("Wrong Response Received !");
                 throw getEdgeApplicationConnectorException(response, "Error posting Service ! Status Code: %d -> Response Body: %s");
@@ -145,7 +145,7 @@ public class EdgeApplicationConnector {
             final CloseableHttpResponse response = httpClient.execute(getSubscriptions);
             if (response != null && response.getStatusLine().getStatusCode() == 200) {
                 final String body = EntityUtils.toString(response.getEntity());
-                logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
+                logger.debug("Getting Subscriptions Response Code: {}", response.getStatusLine().getStatusCode());
                 logger.debug("Response Body: {}", body);
                 return objectMapper.readValue(body, SubscriptionList.class);
             } else {
@@ -181,10 +181,10 @@ public class EdgeApplicationConnector {
             postSubscription.setEntity(new StringEntity(notificationDescriptorJsonString));
             final CloseableHttpResponse response = httpClient.execute(postSubscription);
             if (response != null && response.getStatusLine().getStatusCode() == 201) {
-                logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
+                logger.debug("Posting subscription Response Code: {}", response.getStatusLine().getStatusCode());
             } else {
                 logger.error("Wrong Response Received !");
-                throw getEdgeApplicationConnectorException(response, "Error posting Service ! Status Code: %d -> Response Body: %s");
+                throw getEdgeApplicationConnectorException(response, "Error posting Notification ! Status Code: %d -> Response Body: %s");
             }
         } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
             throw new EdgeApplicationConnectorException(String.format("Error posting Notification ! Cause: %s -> Msg: %s",
@@ -192,20 +192,41 @@ public class EdgeApplicationConnector {
         }
     }
 
-    public NotificationsHandle getNotificationsWebSocket(final String namespace, final String applicationId, final String endpoint) throws EdgeApplicationConnectorException {
+    public NotificationsHandle getNotificationsWS(final String namespace, final String applicationId, final String endpoint) throws EdgeApplicationConnectorException {
         final NotificationsHandle notificationsHandle = new NotificationsHandle();
         try {
             this.wsClient.start();
-            final URI uri = new URI(String.format("%s%s", this.edgeApplicationServiceWsEndpoint, endpoint));  // was "wss://eaa.openness:7443/notifications"
+            final URI uri = new URI(String.format("%s%s", this.edgeApplicationServiceWsEndpoint, endpoint));
             final ClientUpgradeRequest request = new ClientUpgradeRequest();
             request.setHeader("Host", String.format("%s:%s", namespace, applicationId));
             this.wsClient.connect(notificationsHandle, uri, request);
-            //notificationsHandle.awaitClose(300, TimeUnit.SECONDS);  // TODO this should be done in client class, imho
         } catch (Exception e) {
             throw new EdgeApplicationConnectorException(String.format("Error getting Notifications websocket ! Cause: %s -> Msg: %s",
                     e.getCause(), e.getLocalizedMessage()));
+        } finally {
+            return notificationsHandle;
         }
-        return notificationsHandle;
+    }
+
+    public void terminateNotificationsWS() throws EdgeApplicationConnectorException {
+        final String targetUrl = String.format("%snotifications", this.edgeApplicationServiceEndpoint);
+        logger.debug("Terminate notifications websocket - Target Url: {}", targetUrl);
+        final HttpPost postNotification = new HttpPost(targetUrl);
+        try {
+            final String notificationJsonString = this.objectMapper.writeValueAsString(new TerminateNotification());
+            logger.debug(notificationJsonString);
+            postNotification.setEntity(new StringEntity(notificationJsonString));
+            final CloseableHttpResponse response = httpClient.execute(postNotification);
+            if (response != null && response.getStatusLine().getStatusCode() == 202) {
+                logger.debug("Terminating notifications websocket Response Code: {}", response.getStatusLine().getStatusCode());
+            } else {
+                logger.error("Wrong Response Received !");
+                throw getEdgeApplicationConnectorException(response, "Error terminating notifications websocket ! Status Code: %d -> Response Body: %s");
+            }
+        } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
+            throw new EdgeApplicationConnectorException(String.format("Error terminating notifications websocket ! Cause: %s -> Msg: %s",
+                    e.getCause(), e.getLocalizedMessage()));
+        }
     }
 
     public void postNotification(final NotificationFromProducer notification) throws EdgeApplicationConnectorException {
@@ -218,7 +239,7 @@ public class EdgeApplicationConnector {
             postNotification.setEntity(new StringEntity(notificationJsonString));
             final CloseableHttpResponse response = httpClient.execute(postNotification);
             if (response != null && response.getStatusLine().getStatusCode() == 202) {
-                logger.debug("Application Connector Response Code: {}", response.getStatusLine().getStatusCode());
+                logger.debug("Posting Notifications Response Code: {}", response.getStatusLine().getStatusCode());
             } else {
                 logger.error("Wrong Response Received !");
                 throw getEdgeApplicationConnectorException(response, "Error posting Service ! Status Code: %d -> Response Body: %s");
