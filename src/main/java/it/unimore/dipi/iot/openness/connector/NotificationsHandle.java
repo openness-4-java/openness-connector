@@ -1,7 +1,7 @@
 package it.unimore.dipi.iot.openness.connector;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import it.unimore.dipi.iot.openness.dto.service.NotificationToSubscriber;
+import it.unimore.dipi.iot.openness.dto.service.NotificationToConsumer;
 import it.unimore.dipi.iot.openness.dto.service.TerminateNotification;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.*;
@@ -39,7 +39,7 @@ public class NotificationsHandle {
     public void onMessage(String msg) {
         logger.info("Message got: {}", msg);
         try {
-            final NotificationToSubscriber shutdown = this.objectMapper.readValue(msg, NotificationToSubscriber.class);
+            final NotificationToConsumer shutdown = this.objectMapper.readValue(msg, NotificationToConsumer.class);
             final TerminateNotification tn = new TerminateNotification();
             if (shutdown.getName().equals(tn.getName()) && shutdown.getVersion().equals(tn.getVersion()) && shutdown.getPayload().getPayload().equals(tn.getPayload().getPayload())) {
                 logger.info("Received notifications termination request, closing web socket...");

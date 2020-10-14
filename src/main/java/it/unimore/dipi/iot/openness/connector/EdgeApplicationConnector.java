@@ -5,6 +5,7 @@ import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
 import it.unimore.dipi.iot.openness.dto.service.*;
 import it.unimore.dipi.iot.openness.exception.EdgeApplicationConnectorException;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
@@ -82,6 +83,12 @@ public class EdgeApplicationConnector {
         }
     }
 
+    /**
+     * Called by consumers
+     *
+     * @return
+     * @throws EdgeApplicationConnectorException
+     */
     public EdgeApplicationServiceList getAvailableServices() throws EdgeApplicationConnectorException {
 
         try{
@@ -116,6 +123,12 @@ public class EdgeApplicationConnector {
         }
     }
 
+    /**
+     * Called by producers
+     *
+     * @param service
+     * @throws EdgeApplicationConnectorException
+     */
     public void postService(final EdgeApplicationServiceDescriptor service) throws EdgeApplicationConnectorException {
         final String targetUrl = String.format("%sservices", this.edgeApplicationServiceEndpoint);
         logger.debug("Post Service - Target Url: {}", targetUrl);
@@ -137,6 +150,35 @@ public class EdgeApplicationConnector {
         }
     }
 
+    /**
+     * Called by producers
+     *
+     * @throws EdgeApplicationConnectorException
+     */
+    public void deleteService() throws EdgeApplicationConnectorException {
+        final String targetUrl = String.format("%sservices", this.edgeApplicationServiceEndpoint);
+        logger.debug("Delete Service - Target Url: {}", targetUrl);
+        final HttpDelete deleteService = new HttpDelete(targetUrl);
+        try {
+            final CloseableHttpResponse response = httpClient.execute(deleteService);
+            if (response != null && response.getStatusLine().getStatusCode() == 204) {
+                logger.debug("Deleting service Response Code: {}", response.getStatusLine().getStatusCode());
+            } else {
+                logger.error("Wrong Response Received !");
+                throw getEdgeApplicationConnectorException(response, "Error deleting Service ! Status Code: %d -> Response Body: %s");
+            }
+        } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
+            throw new EdgeApplicationConnectorException(String.format("Error deleting Service ! Cause: %s -> Msg: %s",
+                    e.getCause(), e.getLocalizedMessage()));
+        }
+    }
+
+    /**
+     * Called by consumers
+     *
+     * @return
+     * @throws EdgeApplicationConnectorException
+     */
     public SubscriptionList getSubscriptions() throws EdgeApplicationConnectorException {
         final String targetUrl = String.format("%ssubscriptions", this.edgeApplicationServiceEndpoint);
         logger.debug("Get Subscriptions - Target Url: {}", targetUrl);
@@ -158,10 +200,25 @@ public class EdgeApplicationConnector {
         }
     }
 
+    /**
+     * Called by consumers
+     *
+     * @param notifications
+     * @param nameSpace
+     * @throws EdgeApplicationConnectorException
+     */
     public void postSubscription(final List<EdgeApplicationServiceNotificationDescriptor> notifications, final String nameSpace)  throws EdgeApplicationConnectorException {
         this.postSubscription(notifications, nameSpace, "");
     }
 
+    /**
+     * Called by consumers
+     *
+     * @param notifications
+     * @param nameSpace
+     * @param applicationId
+     * @throws EdgeApplicationConnectorException
+     */
     public void postSubscription(final List<EdgeApplicationServiceNotificationDescriptor> notifications, final String nameSpace, final String applicationId) throws EdgeApplicationConnectorException {
         String targetUrl;  // When the consumer application decides on a particular service that it would like to subscribe to, it should call POST /subscriptions/{urn.namespace} to subscribe to all services available in a namespace or call POST /subscriptions/{urn.namespace}/{urn.id} to subscribe to notifications related to the exact producer.
         if (!nameSpace.equals("")) {
@@ -192,6 +249,15 @@ public class EdgeApplicationConnector {
         }
     }
 
+    /**
+     * Called by consumers
+     *
+     * @param namespace
+     * @param applicationId
+     * @param endpoint
+     * @return
+     * @throws EdgeApplicationConnectorException
+     */
     public NotificationsHandle getNotificationsWS(final String namespace, final String applicationId, final String endpoint) throws EdgeApplicationConnectorException {
         final NotificationsHandle notificationsHandle = new NotificationsHandle();
         try {
@@ -229,6 +295,12 @@ public class EdgeApplicationConnector {
         }
     }
 
+    /**
+     * Called by producers
+     *
+     * @param notification
+     * @throws EdgeApplicationConnectorException
+     */
     public void postNotification(final NotificationFromProducer notification) throws EdgeApplicationConnectorException {
         final String targetUrl = String.format("%snotifications", this.edgeApplicationServiceEndpoint);
         logger.debug("Post notification - Target Url: {}", targetUrl);

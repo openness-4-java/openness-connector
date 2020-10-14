@@ -9,7 +9,7 @@ import java.util.Objects;
  * @project openness-connector
  * @created 08/10/2020 - 10:03
  */
-public class NotificationToSubscriber {
+public class NotificationToConsumer {
 
     @JsonProperty("name")
     private String name;
@@ -23,10 +23,10 @@ public class NotificationToSubscriber {
     @JsonProperty("producer")
     private EdgeApplicationServiceUrn producer;
 
-    public NotificationToSubscriber() {
+    public NotificationToConsumer() {
     }
 
-    public NotificationToSubscriber(final String name, final String version, final NotificationPayload payload, final EdgeApplicationServiceUrn producer) {
+    public NotificationToConsumer(final String name, final String version, final NotificationPayload payload, final EdgeApplicationServiceUrn producer) {
         this.name = name;
         this.version = version;
         this.payload = payload;
