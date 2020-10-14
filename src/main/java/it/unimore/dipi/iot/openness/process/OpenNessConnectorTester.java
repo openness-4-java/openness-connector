@@ -120,6 +120,19 @@ public class OpenNessConnectorTester {
                 }
             }
 
+            logger.info("Deleting ALL subscriptions...");
+            edgeApplicationConnector.deleteAllSubscriptions();
+
+            logger.info("Getting subscriptions [#3]...");
+            subscriptions = edgeApplicationConnector.getSubscriptions();
+            if (subscriptions.getSubscriptions() == null) {
+                logger.info("No subscriptions");
+            } else {
+                for (Subscription s : subscriptions.getSubscriptions()) {
+                    logger.info("Subscription Info: {}", s);
+                }
+            }
+
             final NotificationFromProducer notification2 = new NotificationFromProducer(
                     "fake notification 2",
                     "0.0.2",
@@ -150,7 +163,7 @@ public class OpenNessConnectorTester {
             logger.info("Posting subscription(s) [#3]: {}", notifications);
             edgeApplicationConnector.postSubscription(notifications, nameSpace, applicationId);
 
-            logger.info("Getting subscriptions [#3]...");
+            logger.info("Getting subscriptions [#4]...");
             subscriptions = edgeApplicationConnector.getSubscriptions();
             if (subscriptions.getSubscriptions() == null) {
                 logger.info("No subscriptions");

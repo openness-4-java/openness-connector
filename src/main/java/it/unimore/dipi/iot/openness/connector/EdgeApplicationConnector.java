@@ -250,6 +250,29 @@ public class EdgeApplicationConnector {
     }
 
     /**
+     * Called by producers
+     *
+     * @throws EdgeApplicationConnectorException
+     */
+    public void deleteAllSubscriptions() throws EdgeApplicationConnectorException {
+        final String targetUrl = String.format("%ssubscriptions", this.edgeApplicationServiceEndpoint);
+        logger.debug("Delete Subscriptions - Target Url: {}", targetUrl);
+        final HttpDelete deleteSubscriptions = new HttpDelete(targetUrl);
+        try {
+            final CloseableHttpResponse response = httpClient.execute(deleteSubscriptions);
+            if (response != null && response.getStatusLine().getStatusCode() == 204) {
+                logger.debug("Deleting subscriptions Response Code: {}", response.getStatusLine().getStatusCode());
+            } else {
+                logger.error("Wrong Response Received !");
+                throw getEdgeApplicationConnectorException(response, "Error deleting Subscriptions ! Status Code: %d -> Response Body: %s");
+            }
+        } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
+            throw new EdgeApplicationConnectorException(String.format("Error deleting Subscriptions ! Cause: %s -> Msg: %s",
+                    e.getCause(), e.getLocalizedMessage()));
+        }
+    }
+
+    /**
      * Called by consumers
      *
      * @param namespace
