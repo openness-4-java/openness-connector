@@ -325,8 +325,8 @@ public class EdgeApplicationConnector {
      * @return
      * @throws EdgeApplicationConnectorException
      */
-    public WebsocketHandle getNotificationsWS(final String namespace, final String applicationId, final String endpoint) throws EdgeApplicationConnectorException {
-        final WebsocketHandle notificationsHandle = new NotificationsHandle();
+    public AbstractWsHandle getNotificationsWS(final String namespace, final String applicationId, final String endpoint) throws EdgeApplicationConnectorException { // TODO or directly expose jetty listener?
+        final AbstractWsHandle notificationsHandle = new NotificationsHandle();
         try {
             this.wsClient.start();
             final URI uri = new URI(String.format("%s%s", this.edgeApplicationServiceWsEndpoint, endpoint));

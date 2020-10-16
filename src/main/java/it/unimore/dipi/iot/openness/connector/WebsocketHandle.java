@@ -10,21 +10,21 @@ import java.util.concurrent.TimeUnit;
  * @project openness-connector
  * @created 16/10/2020 - 9:11
  */
-@WebSocket(maxTextMessageSize = 64 * 1024)  // TODO here or in implementing class?
+//@WebSocket(maxTextMessageSize = 64 * 1024)  // TODO here or in implementing class?
 public interface WebsocketHandle {
 
     boolean awaitClose(int duration, final TimeUnit unit) throws InterruptedException;
 
-    @OnWebSocketConnect
+    //@OnWebSocketConnect
     void onConnect(final Session session);
 
-    @OnWebSocketMessage
+    //@OnWebSocketMessage
     void onMessage(final String msg);
 
-    @OnWebSocketError
+    //@OnWebSocketError
     void onError(final Throwable cause);
 
-    @OnWebSocketClose
+    //@OnWebSocketClose
     void onClose(int statusCode, final String reason);
 
 }

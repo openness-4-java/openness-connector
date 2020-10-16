@@ -20,7 +20,7 @@ public class NotificationsHandle extends AbstractWsHandle {
     }
 
     @Override
-    public void onMessage(String msg) {
+    public void onWebSocketText(String msg) {
         logger.info("Message got: {}", msg);
         try {
             final NotificationToConsumer shutdown = this.objectMapper.readValue(msg, NotificationToConsumer.class);
