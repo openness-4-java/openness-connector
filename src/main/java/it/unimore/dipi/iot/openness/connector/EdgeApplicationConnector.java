@@ -231,20 +231,20 @@ public class EdgeApplicationConnector {
             targetUrl = String.format("%ssubscriptions", this.edgeApplicationServiceEndpoint);
         }
         final HttpPost postSubscription = new HttpPost(targetUrl);
-        logger.debug("Post Subscription - Target Url: {}", targetUrl);
+        logger.debug("Post subscription - Target Url: {}", targetUrl);
         try {
             final String notificationDescriptorJsonString = this.objectMapper.writeValueAsString(notifications);
             logger.debug(notificationDescriptorJsonString);
             postSubscription.setEntity(new StringEntity(notificationDescriptorJsonString));
             final CloseableHttpResponse response = httpClient.execute(postSubscription);
             if (response != null && response.getStatusLine().getStatusCode() == 201) {
-                logger.debug("Posting Subscription Response Code: {}", response.getStatusLine().getStatusCode());
+                logger.debug("Posting subscription Response Code: {}", response.getStatusLine().getStatusCode());
             } else {
                 logger.error("Wrong Response Received !");
-                throw getEdgeApplicationConnectorException(response, "Error posting Subscription ! Status Code: %d -> Response Body: %s");
+                throw getEdgeApplicationConnectorException(response, "Error posting Notification ! Status Code: %d -> Response Body: %s");
             }
         } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
-            throw new EdgeApplicationConnectorException(String.format("Error posting Subscription ! Cause: %s -> Msg: %s",
+            throw new EdgeApplicationConnectorException(String.format("Error posting Notification ! Cause: %s -> Msg: %s",
                     e.getCause(), e.getLocalizedMessage()));
         }
     }
@@ -261,57 +261,13 @@ public class EdgeApplicationConnector {
         try {
             final CloseableHttpResponse response = httpClient.execute(deleteSubscriptions);
             if (response != null && response.getStatusLine().getStatusCode() == 204) {
-                logger.debug("Deleting Subscriptions Response Code: {}", response.getStatusLine().getStatusCode());
+                logger.debug("Deleting subscriptions Response Code: {}", response.getStatusLine().getStatusCode());
             } else {
                 logger.error("Wrong Response Received !");
                 throw getEdgeApplicationConnectorException(response, "Error deleting Subscriptions ! Status Code: %d -> Response Body: %s");
             }
         } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
             throw new EdgeApplicationConnectorException(String.format("Error deleting Subscriptions ! Cause: %s -> Msg: %s",
-                    e.getCause(), e.getLocalizedMessage()));
-        }
-    }
-
-    /**
-     * Called by consumers
-     *
-     * @param nameSpace
-     * @throws EdgeApplicationConnectorException
-     */
-    public void deleteSubscription(final String nameSpace) throws EdgeApplicationConnectorException {
-        this.deleteSubscription(nameSpace, "");
-    }
-
-    /**
-     * Called by consumers
-     *
-     * @param nameSpace
-     * @param applicationId
-     * @throws EdgeApplicationConnectorException
-     */
-    public void deleteSubscription(final String nameSpace, final String applicationId) throws EdgeApplicationConnectorException {
-        String targetUrl;
-        if (!nameSpace.equals("")) {
-            if (!applicationId.equals("")) {
-                targetUrl = String.format("%ssubscriptions/%s/%s", this.edgeApplicationServiceEndpoint, nameSpace, applicationId);
-            } else {
-                targetUrl = String.format("%ssubscriptions/%s", this.edgeApplicationServiceEndpoint, nameSpace);
-            }
-        } else {
-            targetUrl = String.format("%ssubscriptions", this.edgeApplicationServiceEndpoint);
-        }
-        final HttpDelete deleteSubscription = new HttpDelete(targetUrl);
-        logger.debug("Delete Subscription - Target Url: {}", targetUrl);
-        try {
-            final CloseableHttpResponse response = httpClient.execute(deleteSubscription);
-            if (response != null && response.getStatusLine().getStatusCode() == 204) {
-                logger.debug("Deleting Subscription Response Code: {}", response.getStatusLine().getStatusCode());
-            } else {
-                logger.error("Wrong Response Received !");
-                throw getEdgeApplicationConnectorException(response, "Error deleting Subscription ! Status Code: %d -> Response Body: %s");
-            }
-        } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
-            throw new EdgeApplicationConnectorException(String.format("Error deleting Subscription ! Cause: %s -> Msg: %s",
                     e.getCause(), e.getLocalizedMessage()));
         }
     }
@@ -370,7 +326,7 @@ public class EdgeApplicationConnector {
      */
     public void postNotification(final NotificationFromProducer notification) throws EdgeApplicationConnectorException {
         final String targetUrl = String.format("%snotifications", this.edgeApplicationServiceEndpoint);
-        logger.debug("Post Notification - Target Url: {}", targetUrl);
+        logger.debug("Post notification - Target Url: {}", targetUrl);
         final HttpPost postNotification = new HttpPost(targetUrl);
         try {
             final String notificationJsonString = this.objectMapper.writeValueAsString(notification);
@@ -381,7 +337,7 @@ public class EdgeApplicationConnector {
                 logger.debug("Posting Notifications Response Code: {}", response.getStatusLine().getStatusCode());
             } else {
                 logger.error("Wrong Response Received !");
-                throw getEdgeApplicationConnectorException(response, "Error posting Notification ! Status Code: %d -> Response Body: %s");
+                throw getEdgeApplicationConnectorException(response, "Error posting Service ! Status Code: %d -> Response Body: %s");
             }
         } catch (IOException e) {  // JsonProcessingException | UnsupportedEncodingException | ClientProtocolException
             throw new EdgeApplicationConnectorException(String.format("Error posting Notification ! Cause: %s -> Msg: %s",
