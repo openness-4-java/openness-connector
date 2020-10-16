@@ -27,6 +27,13 @@ public class EdgeApplicationServiceNotificationDescriptor {
         this.description = description;
     }
 
+    public static EdgeApplicationServiceNotificationDescriptor defaultTerminateDescriptor() {
+        return new EdgeApplicationServiceNotificationDescriptor(
+                "terminate",
+                "1.0.0",
+                "To get termination requests");
+    }
+
     public String getName() {
         return name;
     }

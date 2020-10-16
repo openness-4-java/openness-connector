@@ -325,8 +325,8 @@ public class EdgeApplicationConnector {
      * @return
      * @throws EdgeApplicationConnectorException
      */
-    public NotificationsHandle getNotificationsWS(final String namespace, final String applicationId, final String endpoint) throws EdgeApplicationConnectorException {
-        final NotificationsHandle notificationsHandle = new NotificationsHandle();
+    public WebsocketHandle getNotificationsWS(final String namespace, final String applicationId, final String endpoint) throws EdgeApplicationConnectorException {
+        final WebsocketHandle notificationsHandle = new NotificationsHandle();
         try {
             this.wsClient.start();
             final URI uri = new URI(String.format("%s%s", this.edgeApplicationServiceWsEndpoint, endpoint));
@@ -346,7 +346,7 @@ public class EdgeApplicationConnector {
         logger.debug("Terminate notifications websocket - Target Url: {}", targetUrl);
         final HttpPost postNotification = new HttpPost(targetUrl);
         try {
-            final String notificationJsonString = this.objectMapper.writeValueAsString(new TerminateNotification());
+            final String notificationJsonString = this.objectMapper.writeValueAsString(new DefaultTerminateNotification());
             logger.debug(notificationJsonString);
             postNotification.setEntity(new StringEntity(notificationJsonString));
             final CloseableHttpResponse response = httpClient.execute(postNotification);
