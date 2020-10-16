@@ -37,7 +37,7 @@ public abstract class AbstractWsHandle extends WebSocketAdapter {
 
     @Override
     public void onWebSocketError(Throwable cause) {
-        logger.error("Connection error: {} -> {}", cause.getCause(), cause.getLocalizedMessage());
+        logger.info("Connection error: {} -> {}", cause.getCause(), cause.getLocalizedMessage());
     }
 
     @Override
