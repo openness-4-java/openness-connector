@@ -3,7 +3,7 @@ package it.unimore.dipi.iot.openness.process;
 import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
 import it.unimore.dipi.iot.openness.connector.EdgeApplicationAuthenticator;
 import it.unimore.dipi.iot.openness.connector.EdgeApplicationConnector;
-import it.unimore.dipi.iot.openness.connector.WebsocketHandle;
+import it.unimore.dipi.iot.openness.connector.NotificationsHandle;
 import it.unimore.dipi.iot.openness.dto.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,7 +102,7 @@ public class OpenNessConnectorTester {
 
             // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
             logger.info("Booting websocket for getting notifications...");
-            final WebsocketHandle notificationsHandle = edgeApplicationConnector.getNotificationsWS(nameSpace, applicationId, "notifications");
+            final NotificationsHandle notificationsHandle = edgeApplicationConnector.getNotificationsWS(nameSpace, applicationId, "notifications");
 
             // "The consumer application must establish a Websocket before subscribing to services." (https://www.openness.org/docs/doc/applications/openness_appguide#service-activation)
             logger.info("Posting subscription(s) [#1]: {}", notifications);
@@ -155,7 +155,11 @@ public class OpenNessConnectorTester {
             notificationsHandle.awaitClose(5, TimeUnit.SECONDS);
 
             notifications.clear();
-            notifications.add(EdgeApplicationServiceNotificationDescriptor.defaultTerminateDescriptor());
+            notifications.add(new EdgeApplicationServiceNotificationDescriptor(
+                    "terminate",
+                    "1.0.0",
+                    "To get termination requests"
+            ));
             logger.info("Posting subscription(s) [#3]: {}", notifications);
             edgeApplicationConnector.postSubscription(notifications, nameSpace, applicationId);
 
