@@ -4,6 +4,7 @@ import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
 import it.unimore.dipi.iot.openness.connector.AbstractWsHandle;
 import it.unimore.dipi.iot.openness.connector.EdgeApplicationAuthenticator;
 import it.unimore.dipi.iot.openness.connector.EdgeApplicationConnector;
+import it.unimore.dipi.iot.openness.connector.WebsocketHandle;
 import it.unimore.dipi.iot.openness.dto.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,8 +31,8 @@ public class OpenNessConnectorTester {
             String OPENNESS_CONTROLLER_BASE_APP_URL = "https://eaa.openness:7443/";
             String OPENNESS_CONTROLLER_BASE_APP_WS_URL = "wss://eaa.openness:7443/";
 
-            String applicationId = "OpenNessConnectorTester_v3";
-            String nameSpace = "testing_v3";
+            String applicationId = "OpenNessConnectorTester_v2";
+            String nameSpace = "testing_v2";
             String organizationName =  "DIPIUniMore";
 
             AuthorizedApplicationConfiguration authorizedApplicationConfiguration;
