@@ -1,9 +1,9 @@
 package it.unimore.dipi.iot.openness.process;
 
 import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
+import it.unimore.dipi.iot.openness.connector.AbstractWsHandle;
 import it.unimore.dipi.iot.openness.connector.EdgeApplicationAuthenticator;
 import it.unimore.dipi.iot.openness.connector.EdgeApplicationConnector;
-import it.unimore.dipi.iot.openness.connector.NotificationsHandle;
 import it.unimore.dipi.iot.openness.dto.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,8 +30,8 @@ public class OpenNessConnectorTester {
             String OPENNESS_CONTROLLER_BASE_APP_URL = "https://eaa.openness:7443/";
             String OPENNESS_CONTROLLER_BASE_APP_WS_URL = "wss://eaa.openness:7443/";
 
-            String applicationId = "OpenNessConnectorTester_v2";
-            String nameSpace = "testing_v2";
+            String applicationId = "OpenNessConnectorTester_v3";
+            String nameSpace = "testing_v3";
             String organizationName =  "DIPIUniMore";
 
             AuthorizedApplicationConfiguration authorizedApplicationConfiguration;
@@ -102,7 +102,7 @@ public class OpenNessConnectorTester {
 
             // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
             logger.info("Booting websocket for getting notifications...");
-            final NotificationsHandle notificationsHandle = edgeApplicationConnector.getNotificationsWS(nameSpace, applicationId, "notifications");
+            final AbstractWsHandle notificationsHandle = edgeApplicationConnector.getNotificationsWS(nameSpace, applicationId, "notifications");
 
             // "The consumer application must establish a Websocket before subscribing to services." (https://www.openness.org/docs/doc/applications/openness_appguide#service-activation)
             logger.info("Posting subscription(s) [#1]: {}", notifications);
@@ -155,11 +155,7 @@ public class OpenNessConnectorTester {
             notificationsHandle.awaitClose(5, TimeUnit.SECONDS);
 
             notifications.clear();
-            notifications.add(new EdgeApplicationServiceNotificationDescriptor(
-                    "terminate",
-                    "1.0.0",
-                    "To get termination requests"
-            ));
+            notifications.add(EdgeApplicationServiceNotificationDescriptor.defaultTerminateDescriptor());
             logger.info("Posting subscription(s) [#3]: {}", notifications);
             edgeApplicationConnector.postSubscription(notifications, nameSpace, applicationId);
 

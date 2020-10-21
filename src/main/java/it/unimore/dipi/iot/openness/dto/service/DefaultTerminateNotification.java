@@ -9,7 +9,7 @@ import java.util.Objects;
  * @project openness-connector
  * @created 14/10/2020 - 12:31
  */
-public class TerminateNotification {
+public class DefaultTerminateNotification {
 
     @JsonProperty("name")
     private String name;
@@ -20,7 +20,7 @@ public class TerminateNotification {
     @JsonProperty("payload")
     private NotificationPayload payload;
 
-    public TerminateNotification() {
+    public DefaultTerminateNotification() {
         this.name = "terminate";
         this.version = "1.0.0";
         this.payload = new NotificationPayload("");
