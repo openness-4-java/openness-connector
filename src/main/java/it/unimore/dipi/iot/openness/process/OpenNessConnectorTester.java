@@ -1,7 +1,6 @@
 package it.unimore.dipi.iot.openness.process;
 
 import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
-import it.unimore.dipi.iot.openness.connector.AbstractWsHandle;
 import it.unimore.dipi.iot.openness.connector.EdgeApplicationAuthenticator;
 import it.unimore.dipi.iot.openness.connector.EdgeApplicationConnector;
 import it.unimore.dipi.iot.openness.dto.service.*;
@@ -102,7 +101,9 @@ public class OpenNessConnectorTester {
 
             // The Websocket connection should have been previously established by the consumer using GET /notifications before subscribing to any edge service.
             logger.info("Booting websocket for getting notifications...");
-            final AbstractWsHandle notificationsHandle = edgeApplicationConnector.getNotificationsWS(nameSpace, applicationId, "notifications");
+            //Define a Custom Notification Handler
+            MyNotificationsHandler myNotificationsHandler = new MyNotificationsHandler();
+            edgeApplicationConnector.setupNotificationChannel(nameSpace, applicationId, "notifications", myNotificationsHandler);
 
             // "The consumer application must establish a Websocket before subscribing to services." (https://www.openness.org/docs/doc/applications/openness_appguide#service-activation)
             logger.info("Posting subscription(s) [#1]: {}", notifications);
@@ -151,8 +152,8 @@ public class OpenNessConnectorTester {
 
             /* NOT WORKING, NOT SUBSCRIBED YET...(this is intended behaviour) */
             logger.info("Terminating notifications websocket [#1]...");
-            edgeApplicationConnector.terminateNotificationsWS();
-            notificationsHandle.awaitClose(5, TimeUnit.SECONDS);
+            edgeApplicationConnector.closeNotificationChannel();
+            myNotificationsHandler.awaitClose(5, TimeUnit.SECONDS);
 
             notifications.clear();
             notifications.add(EdgeApplicationServiceNotificationDescriptor.defaultTerminateDescriptor());
@@ -171,7 +172,7 @@ public class OpenNessConnectorTester {
 
             /* NOW WORKING, NOW SUBSCRIBED */
             logger.info("Terminating notifications websocket [#2]...");
-            edgeApplicationConnector.terminateNotificationsWS();
+            edgeApplicationConnector.closeNotificationChannel();
 
             logger.info("Deleting service...");
             edgeApplicationConnector.deleteService();
@@ -182,7 +183,7 @@ public class OpenNessConnectorTester {
                 logger.info("Service Info: {}", serviceDescriptor);
             }
 
-            notificationsHandle.awaitClose(5, TimeUnit.SECONDS);
+            myNotificationsHandler.awaitClose(5, TimeUnit.SECONDS);
 
         } catch (Exception e) {
             e.printStackTrace();

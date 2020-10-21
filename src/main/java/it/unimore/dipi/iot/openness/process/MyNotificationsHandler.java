@@ -1,6 +1,7 @@
-package it.unimore.dipi.iot.openness.connector;
+package it.unimore.dipi.iot.openness.process;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import it.unimore.dipi.iot.openness.notification.AbstractWebSocketHandler;
 import it.unimore.dipi.iot.openness.dto.service.NotificationToConsumer;
 import it.unimore.dipi.iot.openness.dto.service.DefaultTerminateNotification;
 
@@ -11,17 +12,19 @@ import java.io.IOException;
  * @project openness-connector
  * @created 07/10/2020 - 14:03
  */
-public class NotificationsHandle extends AbstractWsHandle {
+public class MyNotificationsHandler extends AbstractWebSocketHandler {
 
     private ObjectMapper objectMapper;
 
-    public NotificationsHandle() {
+    public MyNotificationsHandler() {
         this.objectMapper = new ObjectMapper();
     }
 
     @Override
     public void onWebSocketText(String msg) {
+
         logger.info("Message got: {}", msg);
+
         try {
             final NotificationToConsumer shutdown = this.objectMapper.readValue(msg, NotificationToConsumer.class);
             final DefaultTerminateNotification tn = new DefaultTerminateNotification();

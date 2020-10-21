@@ -1,5 +1,6 @@
-package it.unimore.dipi.iot.openness.connector;
+package it.unimore.dipi.iot.openness.notification;
 
+import it.unimore.dipi.iot.openness.process.MyNotificationsHandler;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.slf4j.Logger;
@@ -14,9 +15,9 @@ import java.util.concurrent.TimeUnit;
  * @created 16/10/2020 - 9:11
  */
 //@WebSocket(maxTextMessageSize = 64 * 1024)
-public abstract class AbstractWsHandle extends WebSocketAdapter {
+public abstract class AbstractWebSocketHandler extends WebSocketAdapter {
 
-    protected static final Logger logger = LoggerFactory.getLogger(NotificationsHandle.class);
+    protected static final Logger logger = LoggerFactory.getLogger(MyNotificationsHandler.class);
     private final CountDownLatch closeLatch = new CountDownLatch(1);
     protected Session session;
 
@@ -25,9 +26,14 @@ public abstract class AbstractWsHandle extends WebSocketAdapter {
     }
 
     @Override
-    public void onWebSocketConnect(Session sess) {
-        logger.info("Connection to {} open: {} (secured:{})", session.getRemoteAddress(), session.isOpen(), session.isSecure());
-        this.session = session;
+    public void onWebSocketConnect(Session session) {
+
+        if(session != null) {
+            this.session = session;
+            logger.info("Connection to {} open: {} (secured:{})", this.session.getRemoteAddress(), this.session.isOpen(), this.session.isSecure());
+        }
+        else
+            logger.error("Error ! Session = null !");
     }
 
     @Override
