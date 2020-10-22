@@ -326,13 +326,13 @@ public class EdgeApplicationConnector {
      * @return
      * @throws EdgeApplicationConnectorException
      */
-    public void setupNotificationChannel(final String namespace, final String applicationId, final String endpoint, AbstractWebSocketHandler notificationsHandler) throws EdgeApplicationConnectorException {
+    public void setupNotificationChannel(final String namespace, final String applicationId, AbstractWebSocketHandler notificationsHandler) throws EdgeApplicationConnectorException {
 
         //final AbstractWsHandler notificationsHandle = new MyNotificationsHandler();
 
         try {
             this.wsClient.start();
-            final URI uri = new URI(String.format("%s%s", this.edgeApplicationServiceWsEndpoint, endpoint));
+            final URI uri = new URI(String.format("%snotifications", this.edgeApplicationServiceWsEndpoint));
             final ClientUpgradeRequest request = new ClientUpgradeRequest();
             request.setHeader("Host", String.format("%s:%s", namespace, applicationId));
             this.wsClient.connect(notificationsHandler, uri, request);

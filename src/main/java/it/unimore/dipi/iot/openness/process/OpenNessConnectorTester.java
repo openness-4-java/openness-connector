@@ -103,7 +103,7 @@ public class OpenNessConnectorTester {
             logger.info("Booting websocket for getting notifications...");
             //Define a Custom Notification Handler
             MyNotificationsHandler myNotificationsHandler = new MyNotificationsHandler();
-            edgeApplicationConnector.setupNotificationChannel(nameSpace, applicationId, "notifications", myNotificationsHandler);
+            edgeApplicationConnector.setupNotificationChannel(nameSpace, applicationId, myNotificationsHandler);
 
             // "The consumer application must establish a Websocket before subscribing to services." (https://www.openness.org/docs/doc/applications/openness_appguide#service-activation)
             logger.info("Posting subscription(s) [#1]: {}", notifications);
