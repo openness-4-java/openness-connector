@@ -1,6 +1,5 @@
 package it.unimore.dipi.iot.openness.notification;
 
-import it.unimore.dipi.iot.openness.process.MyNotificationsHandler;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.slf4j.Logger;
@@ -17,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 //@WebSocket(maxTextMessageSize = 64 * 1024)
 public abstract class AbstractWebSocketHandler extends WebSocketAdapter {
 
-    protected static final Logger logger = LoggerFactory.getLogger(MyNotificationsHandler.class);
+    protected static final Logger logger = LoggerFactory.getLogger(AbstractWebSocketHandler.class);
     private final CountDownLatch closeLatch = new CountDownLatch(1);
     protected Session session;
 
