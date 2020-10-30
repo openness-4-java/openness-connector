@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import it.unimore.dipi.iot.openness.config.AuthorizedApplicationConfiguration;
 import it.unimore.dipi.iot.openness.dto.service.*;
 import it.unimore.dipi.iot.openness.exception.EdgeApplicationConnectorException;
+import it.unimore.dipi.iot.openness.notification.AbstractWebSocketHandler;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
@@ -321,30 +322,32 @@ public class EdgeApplicationConnector {
      *
      * @param namespace
      * @param applicationId
-     * @param endpoint
      * @return
      * @throws EdgeApplicationConnectorException
      */
-    public NotificationsHandle getNotificationsWS(final String namespace, final String applicationId, final String endpoint) throws EdgeApplicationConnectorException {
-        final NotificationsHandle notificationsHandle = new NotificationsHandle();
+    public void setupNotificationChannel(final String namespace, final String applicationId, AbstractWebSocketHandler notificationsHandler) throws EdgeApplicationConnectorException {
+
+        //final AbstractWsHandler notificationsHandle = new MyNotificationsHandler();
+
         try {
             this.wsClient.start();
-            final URI uri = new URI(String.format("%s%s", this.edgeApplicationServiceWsEndpoint, endpoint));
+            final URI uri = new URI(String.format("%snotifications", this.edgeApplicationServiceWsEndpoint));
             final ClientUpgradeRequest request = new ClientUpgradeRequest();
             request.setHeader("Host", String.format("%s:%s", namespace, applicationId));
-            this.wsClient.connect(notificationsHandle, uri, request);
+            this.wsClient.connect(notificationsHandler, uri, request);
         } catch (Exception e) {
-            throw new EdgeApplicationConnectorException(String.format("Error getting Notifications websocket ! Cause: %s -> Msg: %s",
-                    e.getCause(), e.getLocalizedMessage()));
-        } finally {
-            return notificationsHandle;
+            throw new EdgeApplicationConnectorException(String.format("Error getting Notifications websocket ! Cause: %s -> Msg: %s", e.getCause(), e.getLocalizedMessage()));
         }
     }
 
-    public void terminateNotificationsWS() throws EdgeApplicationConnectorException {
+    public void closeNotificationChannel() throws EdgeApplicationConnectorException {
+
         final String targetUrl = String.format("%snotifications", this.edgeApplicationServiceEndpoint);
+
         logger.debug("Terminate notifications websocket - Target Url: {}", targetUrl);
+
         final HttpPost postNotification = new HttpPost(targetUrl);
+
         try {
             final String notificationJsonString = this.objectMapper.writeValueAsString(new TerminateNotification());
             logger.debug(notificationJsonString);

@@ -70,6 +70,160 @@ public class EdgeApplicationAuthenticator {
 
     }
 
+    public AuthorizedApplicationConfiguration authenticateApplication(String nameSpace, String applicationId, String organizationName) throws EdgeApplicationAuthenticatorException {
+
+        if(this.controllerApiEndpoint == null)
+            throw new EdgeApplicationAuthenticatorException("Invalid OpenNess Controller Endpoint ! Null Endpoint provided !");
+
+        if(httpClient == null)
+            throw new EdgeApplicationAuthenticatorException("Error ! HTTP Client = Null !");
+
+        nameSpace = validateNamespace(nameSpace);
+        applicationId = validateApplicationId(applicationId);
+        organizationName = validateOrganizationName(organizationName);
+
+        try{
+
+            logger.info("Authenticating Application -> Namespace: {} ApplicationId: {} OrganizationName:{}", nameSpace, applicationId, organizationName);
+
+            String applicationUniqueIdentifier = generateApplicationUniqueIdentifier(applicationId, organizationName);
+
+            checkApplicationKeyPair(applicationUniqueIdentifier);
+
+            Optional<String> csrString = generateCertificateSigningRequest(organizationName, nameSpace, applicationId);
+
+            if(!csrString.isPresent())
+                throw new EdgeApplicationAuthenticatorException("Error Generating Certificate Signing Request !");
+
+            //Create ApplicationAuthenticationRequest
+            ApplicationAuthenticationRequest applicationAuthenticationRequest = new ApplicationAuthenticationRequest();
+            applicationAuthenticationRequest.setCertificateSigningRequest(csrString.get());
+
+            String jsonBody = objectMapper.writeValueAsString(applicationAuthenticationRequest);
+
+            logger.debug("OpenNess Auth JsonBody: {}", jsonBody);
+
+            HttpPost authPost = new HttpPost(this.controllerApiEndpoint+AUTH_API_RESOURCE);
+            authPost.setEntity(new StringEntity(jsonBody));
+
+            CloseableHttpResponse response = httpClient.execute(authPost);
+
+            if(response != null){
+
+                String bodyString = EntityUtils.toString(response.getEntity());
+
+                logger.info("Application Authentication Response Code: {}", response.getStatusLine().getStatusCode());
+                logger.info("Response Body: {}", bodyString);
+
+                String clientCertificateFilePath = AuthenticatorFileUtils.getClientCertificateFilePath(applicationUniqueIdentifier);
+                String caChainFilePath = AuthenticatorFileUtils.getCaChainFilePath(applicationUniqueIdentifier);
+                String caPoolFilePath = AuthenticatorFileUtils.getCaPoolFilePath(applicationUniqueIdentifier);
+
+                //Handle Authentication Response
+                handleAuthenticationResponse(bodyString, clientCertificateFilePath, caChainFilePath, caPoolFilePath);
+
+                //Generate Java TrustStore and KeyStore management files
+                String trustStoreOutputFilePath = AuthenticatorFileUtils.getTrustStoreOutputFilePath(applicationUniqueIdentifier);
+                String clientChainCertificateOutputFilePath = AuthenticatorFileUtils.getClientChainOutputFilePath(applicationUniqueIdentifier);
+                String keyStoreOutputFilePath = AuthenticatorFileUtils.getKeyStoreOutputFilePath(applicationUniqueIdentifier);
+
+                generateJavaSecurityFiles(JAVA_STORE_PASSWORD,
+                        DOMAIN_ALIAS,
+                        clientCertificateFilePath,
+                        AuthenticatorFileUtils.getPrivateKeyFilePath(applicationUniqueIdentifier),
+                        caChainFilePath,
+                        trustStoreOutputFilePath,
+                        clientChainCertificateOutputFilePath,
+                        keyStoreOutputFilePath,
+                        String.format("%s%s", applicationId, organizationName));
+
+                return new AuthorizedApplicationConfiguration(applicationUniqueIdentifier,
+                        applicationId,
+                        organizationName,
+                        trustStoreOutputFilePath,
+                        keyStoreOutputFilePath,
+                        this.controllerApiEndpoint,
+                        JAVA_STORE_PASSWORD);
+
+            }
+            else {
+                String errorMsg = String.format("Error Authenticating Application ! Response Body: NULL !");
+                logger.error(errorMsg);
+                throw new EdgeApplicationAuthenticatorException(errorMsg);
+            }
+
+        }catch (Exception e){
+            e.printStackTrace();
+            String errorMsg = String.format("Error Authenticating Application ! Error: %s", e.getLocalizedMessage());
+            logger.error(errorMsg);
+            throw new EdgeApplicationAuthenticatorException(errorMsg);
+        }
+    }
+
+    public static String generateApplicationUniqueIdentifier(String applicationId, String organizationName) throws NoSuchAlgorithmException, EdgeApplicationAuthenticatorException {
+
+        applicationId = validateApplicationId(applicationId);
+        organizationName = validateOrganizationName(organizationName);
+
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] encodedhash = digest.digest(String.format("%s%s", applicationId, organizationName).getBytes(StandardCharsets.UTF_8));
+        String result = bytesToHex(encodedhash);
+
+        logger.info("Unique ApplicationId for ApplicationId: {} and OrganizationName:{} -> {}", applicationId, organizationName, result);
+
+        return result;
+    }
+
+    public Optional<AuthorizedApplicationConfiguration> loadExistingAuthorizedApplicationConfiguration(String applicationId, String organizationName){
+
+        try{
+
+            applicationId = validateApplicationId(applicationId);
+            organizationName = validateOrganizationName(organizationName);
+
+            logger.info("Loading Authorized Application Configuration for ApplicationId: {} and OrganizationName:{}", applicationId, organizationName);
+
+            String applicationUniqueIdentifier = generateApplicationUniqueIdentifier(applicationId, organizationName);
+
+            if(AuthenticatorFileUtils.isJavaClientAuthenticationFilesAvailable(applicationUniqueIdentifier))
+                return Optional.of(new AuthorizedApplicationConfiguration(
+                        applicationUniqueIdentifier,
+                        applicationId,
+                        organizationName,
+                        AuthenticatorFileUtils.getTrustStoreOutputFilePath(applicationUniqueIdentifier),
+                        AuthenticatorFileUtils.getKeyStoreOutputFilePath(applicationUniqueIdentifier),
+                        this.controllerApiEndpoint,
+                        JAVA_STORE_PASSWORD));
+            else
+                return Optional.empty();
+
+        }catch (Exception e){
+            logger.error("Error Loading Existing AuthorizedApplicationConfiguration !");
+            return Optional.empty();
+        }
+    }
+
+    private static String validateNamespace(String namespace) throws EdgeApplicationAuthenticatorException {
+        if(namespace != null)
+            return namespace.trim().replaceAll("\\s","");
+        else
+            throw new EdgeApplicationAuthenticatorException("Null Namespace !");
+    }
+
+    private static String validateApplicationId(String appId) throws EdgeApplicationAuthenticatorException {
+        if(appId != null)
+            return appId.trim().replaceAll("\\s","");
+        else
+            throw new EdgeApplicationAuthenticatorException("Null Application Id !");
+    }
+
+    private static String validateOrganizationName(String organizationName) throws EdgeApplicationAuthenticatorException {
+        if(organizationName != null)
+            return organizationName.trim().replaceAll("\\s","");
+        else
+            throw new EdgeApplicationAuthenticatorException("Null OrganizationName !");
+    }
+
     private void generateNewKeyPair(String applicationUniqueIdentifier) throws EdgeApplicationAuthenticatorException {
 
         try{
@@ -168,90 +322,6 @@ public class EdgeApplicationAuthenticator {
         }
     }
 
-    public AuthorizedApplicationConfiguration authenticateApplication(String nameSpace, String applicationId, String organizationName) throws EdgeApplicationAuthenticatorException {
-
-        if(this.controllerApiEndpoint == null)
-            throw new EdgeApplicationAuthenticatorException("Invalid OpenNess Controller Endpoint ! Null Endpoint provided !");
-
-        if(httpClient == null)
-            throw new EdgeApplicationAuthenticatorException("Error ! HTTP Client = Null !");
-
-        try{
-
-            String applicationUniqueIdentifier = generateApplicationUniqueIdentifier(applicationId, organizationName);
-
-            checkApplicationKeyPair(applicationUniqueIdentifier);
-
-            Optional<String> csrString = generateCertificateSigningRequest(organizationName, nameSpace, applicationId);
-
-            if(!csrString.isPresent())
-                throw new EdgeApplicationAuthenticatorException("Error Generating Certificate Signing Request !");
-
-            //Create ApplicationAuthenticationRequest
-            ApplicationAuthenticationRequest applicationAuthenticationRequest = new ApplicationAuthenticationRequest();
-            applicationAuthenticationRequest.setCertificateSigningRequest(csrString.get());
-
-            String jsonBody = objectMapper.writeValueAsString(applicationAuthenticationRequest);
-
-            logger.debug("OpenNess Auth JsonBody: {}", jsonBody);
-
-            HttpPost authPost = new HttpPost(this.controllerApiEndpoint+AUTH_API_RESOURCE);
-            authPost.setEntity(new StringEntity(jsonBody));
-
-            CloseableHttpResponse response = httpClient.execute(authPost);
-
-            if(response != null){
-
-                String bodyString = EntityUtils.toString(response.getEntity());
-
-                logger.info("Application Authentication Response Code: {}", response.getStatusLine().getStatusCode());
-                logger.info("Response Body: {}", bodyString);
-
-                String clientCertificateFilePath = AuthenticatorFileUtils.getClientCertificateFilePath(applicationUniqueIdentifier);
-                String caChainFilePath = AuthenticatorFileUtils.getCaChainFilePath(applicationUniqueIdentifier);
-                String caPoolFilePath = AuthenticatorFileUtils.getCaPoolFilePath(applicationUniqueIdentifier);
-
-                //Handle Authentication Response
-                handleAuthenticationResponse(bodyString, clientCertificateFilePath, caChainFilePath, caPoolFilePath);
-
-                //Generate Java TrustStore and KeyStore management files
-                String trustStoreOutputFilePath = AuthenticatorFileUtils.getTrustStoreOutputFilePath(applicationUniqueIdentifier);
-                String clientChainCertificateOutputFilePath = AuthenticatorFileUtils.getClientChainOutputFilePath(applicationUniqueIdentifier);
-                String keyStoreOutputFilePath = AuthenticatorFileUtils.getKeyStoreOutputFilePath(applicationUniqueIdentifier);
-
-                generateJavaSecurityFiles(JAVA_STORE_PASSWORD,
-                        DOMAIN_ALIAS,
-                        clientCertificateFilePath,
-                        AuthenticatorFileUtils.getPrivateKeyFilePath(applicationUniqueIdentifier),
-                        caChainFilePath,
-                        trustStoreOutputFilePath,
-                        clientChainCertificateOutputFilePath,
-                        keyStoreOutputFilePath,
-                        String.format("%s%s", applicationId, organizationName));
-
-                return new AuthorizedApplicationConfiguration(applicationUniqueIdentifier,
-                        applicationId,
-                        organizationName,
-                        trustStoreOutputFilePath,
-                        keyStoreOutputFilePath,
-                        this.controllerApiEndpoint,
-                        JAVA_STORE_PASSWORD);
-
-            }
-            else {
-                String errorMsg = String.format("Error Authenticating Application ! Response Body: NULL !");
-                logger.error(errorMsg);
-                throw new EdgeApplicationAuthenticatorException(errorMsg);
-            }
-
-        }catch (Exception e){
-            e.printStackTrace();
-            String errorMsg = String.format("Error Authenticating Application ! Error: %s", e.getLocalizedMessage());
-            logger.error(errorMsg);
-            throw new EdgeApplicationAuthenticatorException(errorMsg);
-        }
-    }
-
     private void handleAuthenticationResponse(String responseBody, String clientCertificateFilePath, String caChainFilePath, String caPoolFilePath) throws EdgeApplicationAuthenticatorException {
 
         try{
@@ -283,13 +353,6 @@ public class EdgeApplicationAuthenticator {
             logger.error(errorMsg);
             throw new EdgeApplicationAuthenticatorException(errorMsg);
         }
-    }
-
-    public static String generateApplicationUniqueIdentifier(String applicationId, String organizationName) throws NoSuchAlgorithmException {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] encodedhash = digest.digest(String.format("%s%s", applicationId, organizationName).getBytes(StandardCharsets.UTF_8));
-        return bytesToHex(encodedhash);
-        //return UUID.fromString(String.format("%s%s", applicationId, organizationName)).toString();
     }
 
     public void generateJavaSecurityFiles(String storePassword,
@@ -374,30 +437,6 @@ public class EdgeApplicationAuthenticator {
 
     public void setControllerApiEndpoint(String controllerApiEndpoint) {
         this.controllerApiEndpoint = controllerApiEndpoint;
-    }
-
-    public Optional<AuthorizedApplicationConfiguration> loadExistingAuthorizedApplicationConfiguration(String applicationId, String organizationName){
-
-        try{
-
-            String applicationUniqueIdentifier = generateApplicationUniqueIdentifier(applicationId, organizationName);
-
-            if(AuthenticatorFileUtils.isJavaClientAuthenticationFilesAvailable(applicationUniqueIdentifier))
-               return Optional.of(new AuthorizedApplicationConfiguration(
-                       applicationUniqueIdentifier,
-                       applicationId,
-                       organizationName,
-                       AuthenticatorFileUtils.getTrustStoreOutputFilePath(applicationUniqueIdentifier),
-                       AuthenticatorFileUtils.getKeyStoreOutputFilePath(applicationUniqueIdentifier),
-                       this.controllerApiEndpoint,
-                       JAVA_STORE_PASSWORD));
-            else
-                return Optional.empty();
-
-        }catch (Exception e){
-            logger.error("Error Loading Existing AuthorizedApplicationConfiguration !");
-            return Optional.empty();
-        }
     }
 
     public static void main(String[] args) {
