@@ -32,7 +32,7 @@ dependencies {
 
 String binGroupId = 'it.unimore.dipi'
 String binLibName = 'openness-connector'
-String binVer = '0.0.3'
+String binVer = '0.0.4'
 
 group = binGroupId
 version = binVer
