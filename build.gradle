@@ -5,7 +5,7 @@ buildscript {
 }
 
 plugins {
-    id "com.jfrog.bintray" version "1.7"
+    id "com.jfrog.bintray" version "1.8.3"
 }
 
 allprojects {
@@ -13,6 +13,8 @@ allprojects {
         jcenter()
     }
     apply plugin: 'java'
+    apply plugin: 'java-library'
+    apply plugin: 'maven-publish'
 }
 
 dependencies {
@@ -28,17 +30,65 @@ dependencies {
     implementation group:'junit', name:'junit', version:'4.13'
 }
 
+String binGroupId = 'it.unimore.dipi'
+String binLibName = 'openness-connector'
+String binVer = '0.0.1'
+
+group = binGroupId
+version = binVer
+
+// Create the pom configuration:
+def pomConfig = {
+    licenses {
+        license {
+            name "The Apache Software License, Version 3.0"
+            url "http://www.apache.org/licenses/LICENSE-3.0.txt"
+            distribution "repo"
+        }
+    }
+    developers {
+        developer {
+            id "smarianimore"
+            name "Stefano Mariani"
+            email "stefano.mariani@unimore.it"
+        }
+    }
+
+    scm {
+        url "https://gitlab.com/SteMore/openness-connector.git"
+    }
+}
+
+publishing {
+    publications {
+        MyPublication(MavenPublication) {
+            from components.java
+            groupId binGroupId
+            artifactId binLibName
+            version binVer
+            pom.withXml {
+                def root = asNode()
+                root.appendNode('description', 'Openness connector library')
+                root.appendNode('name', binLibName)
+                root.appendNode('url', 'https://gitlab.com/SteMore/openness-connector.git')
+                root.children().last() + pomConfig
+            }
+        }
+    }
+}
+
 bintray {
     user = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
     key = project.hasProperty('bintrayApiKey') ? project.property('bintrayApiKey') : System.getenv('BINTRAY_API_KEY')
     configurations = ['archives']
+    publications = ['MyPublication']
     pkg {
-        repo = 'openness-connector'
-        name = 'it.unimore.dipi.iot'
+        repo = binLibName
+        name = binLibName
         licenses = ['AGPL-V3']
         vcsUrl = 'https://gitlab.com/SteMore/openness-connector.git'
         version {
-            name = '0.0.1'
+            name = binVer
             released  = new Date()
         }
     }
