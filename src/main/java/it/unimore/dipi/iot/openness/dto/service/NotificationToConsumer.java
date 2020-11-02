@@ -1,6 +1,7 @@
 package it.unimore.dipi.iot.openness.dto.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.Objects;
 
@@ -18,7 +19,7 @@ public class NotificationToConsumer {
     private String version;
 
     @JsonProperty("payload")
-    private NotificationPayload payload;
+    private JsonNode payload;
 
     @JsonProperty("producer")
     private EdgeApplicationServiceUrn producer;
@@ -26,7 +27,7 @@ public class NotificationToConsumer {
     public NotificationToConsumer() {
     }
 
-    public NotificationToConsumer(final String name, final String version, final NotificationPayload payload, final EdgeApplicationServiceUrn producer) {
+    public NotificationToConsumer(final String name, final String version, final JsonNode payload, final EdgeApplicationServiceUrn producer) {
         this.name = name;
         this.version = version;
         this.payload = payload;
@@ -49,11 +50,11 @@ public class NotificationToConsumer {
         this.version = version;
     }
 
-    public NotificationPayload getPayload() {
+    public JsonNode getPayload() {
         return payload;
     }
 
-    public void setPayload(final NotificationPayload payload) {
+    public void setPayload(final JsonNode payload) {
         this.payload = payload;
     }
 

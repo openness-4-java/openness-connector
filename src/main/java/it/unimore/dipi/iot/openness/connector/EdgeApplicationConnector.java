@@ -118,7 +118,7 @@ public class EdgeApplicationConnector {
             }
 
         }catch (Exception e){
-            String errorMsg = String.format("Error Authenticating Application ! Error: %s", e.getLocalizedMessage());
+            String errorMsg = String.format("Error retrieving Service List ! Error: %s", e.getLocalizedMessage());
             logger.error(errorMsg);
             throw new EdgeApplicationConnectorException(errorMsg);
         }

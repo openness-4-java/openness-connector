@@ -69,7 +69,7 @@ public class OpenNessConnectorTester {
                     String.format("%s/%s", nameSpace, applicationId),  // MUST BE AS DURING AUTHENTICATION
                     "fake status",
                     notifications,
-                    new ServiceInfo("fake info")
+                    "fake info"
             );
             int nLog = 1;
             logger.info("Posting service: {}", service);
@@ -94,7 +94,7 @@ public class OpenNessConnectorTester {
             final NotificationFromProducer notification1 = new NotificationFromProducer(
                     "fake notification 1",
                     "0.0.1",
-                    new NotificationPayload("fake payload 1")
+                    "fake payload 1"
             );
             logger.info("Posting notification [#1]: {}", notification1);
             edgeApplicationConnector.postNotification(notification1);
@@ -137,7 +137,7 @@ public class OpenNessConnectorTester {
             final NotificationFromProducer notification2 = new NotificationFromProducer(
                     "fake notification 2",
                     "0.0.2",
-                    new NotificationPayload("fake payload 2")
+                    "fake payload 2"
             );
             logger.info("Posting notification [#2]: {}", notification2);
             edgeApplicationConnector.postNotification(notification2);
@@ -145,7 +145,7 @@ public class OpenNessConnectorTester {
             final NotificationFromProducer notification22 = new NotificationFromProducer(
                     "fake notification 2",
                     "0.0.2",
-                    new NotificationPayload("fake payload 22")
+                    "fake payload 22"
             );
             logger.info("Posting notification [#3]: {}", notification22);
             edgeApplicationConnector.postNotification(notification22);

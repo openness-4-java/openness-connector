@@ -18,12 +18,12 @@ public class NotificationFromProducer {
     private String version;
 
     @JsonProperty("payload")
-    private NotificationPayload payload;
+    private Object payload;
 
     public NotificationFromProducer() {
     }
 
-    public NotificationFromProducer(final String name, final String version, final NotificationPayload payload) {
+    public NotificationFromProducer(final String name, final String version, final Object payload) {
         this.name = name;
         this.version = version;
         this.payload = payload;
@@ -45,11 +45,11 @@ public class NotificationFromProducer {
         this.version = version;
     }
 
-    public NotificationPayload getPayload() {
+    public Object getPayload() {
         return payload;
     }
 
-    public void setPayload(final NotificationPayload payload) {
+    public void setPayload(final Object payload) {
         this.payload = payload;
     }
 

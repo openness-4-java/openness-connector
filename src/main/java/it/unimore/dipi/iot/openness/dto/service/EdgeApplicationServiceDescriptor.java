@@ -1,6 +1,8 @@
 package it.unimore.dipi.iot.openness.dto.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
@@ -27,18 +29,19 @@ public class EdgeApplicationServiceDescriptor {
     private List<EdgeApplicationServiceNotificationDescriptor> notificationDescriptorList;
 
     @JsonProperty("info")
-    private ServiceInfo info;
+    private JsonNode info;
 
     public EdgeApplicationServiceDescriptor() {
     }
 
-    public EdgeApplicationServiceDescriptor(EdgeApplicationServiceUrn serviceUrn, String description, String endpointUri, final String status, List<EdgeApplicationServiceNotificationDescriptor> notificationDescriptorList, final ServiceInfo info) {
+    public EdgeApplicationServiceDescriptor(EdgeApplicationServiceUrn serviceUrn, String description, String endpointUri, final String status, List<EdgeApplicationServiceNotificationDescriptor> notificationDescriptorList, final Object info) {
         this.serviceUrn = serviceUrn;
         this.description = description;
         this.endpointUri = endpointUri;
         this.status = status;
         this.notificationDescriptorList = notificationDescriptorList;
-        this.info = info;
+        final ObjectMapper om = new ObjectMapper();
+        this.info = om.valueToTree(info);
     }
 
     public EdgeApplicationServiceUrn getServiceUrn() {
@@ -81,11 +84,11 @@ public class EdgeApplicationServiceDescriptor {
         this.notificationDescriptorList = notificationDescriptorList;
     }
 
-    public ServiceInfo getInfo() {
+    public JsonNode getInfo() {
         return info;
     }
 
-    public void setInfo(ServiceInfo info) {
+    public void setInfo(JsonNode info) {
         this.info = info;
     }
 

@@ -1,6 +1,8 @@
 package it.unimore.dipi.iot.openness.dto.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Objects;
 
@@ -18,12 +20,13 @@ public class TerminateNotification {
     private String version;
 
     @JsonProperty("payload")
-    private NotificationPayload payload;
+    private JsonNode payload;
 
     public TerminateNotification() {
         this.name = "terminate";
         this.version = "1.0.0";
-        this.payload = new NotificationPayload("");
+        final ObjectMapper om = new ObjectMapper();
+        this.payload = om.valueToTree("");
     }
 
     public String getName() {
@@ -42,11 +45,11 @@ public class TerminateNotification {
         this.version = version;
     }
 
-    public NotificationPayload getPayload() {
+    public JsonNode getPayload() {
         return payload;
     }
 
-    public void setPayload(final NotificationPayload payload) {
+    public void setPayload(final JsonNode payload) {
         this.payload = payload;
     }
 

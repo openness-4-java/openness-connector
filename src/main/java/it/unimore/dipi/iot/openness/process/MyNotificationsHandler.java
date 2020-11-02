@@ -31,7 +31,7 @@ public class MyNotificationsHandler extends AbstractWebSocketHandler {
         try {
             final NotificationToConsumer shutdown = this.objectMapper.readValue(msg, NotificationToConsumer.class);
             final TerminateNotification tn = new TerminateNotification();
-            if (shutdown.getName().equals(tn.getName()) && shutdown.getVersion().equals(tn.getVersion()) && shutdown.getPayload().getPayload().equals(tn.getPayload().getPayload())) {
+            if (shutdown.getName().equals(tn.getName()) && shutdown.getVersion().equals(tn.getVersion())) {
                 logger.info("Received notifications termination request, closing web socket...");
                 this.session.close();
                 this.session.disconnect();
