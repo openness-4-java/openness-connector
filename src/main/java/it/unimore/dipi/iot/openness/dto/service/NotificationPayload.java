@@ -12,16 +12,16 @@ import java.util.Objects;
 public class NotificationPayload {
 
     @JsonProperty("payload")
-    private String payload;
+    private Object payload;
 
     public NotificationPayload() {
     }
 
-    public NotificationPayload(final String payload) {
+    public NotificationPayload(final Object payload) {
         this.payload = payload;
     }
 
-    public String getPayload() {
+    public Object getPayload() {
         return payload;
     }
 
