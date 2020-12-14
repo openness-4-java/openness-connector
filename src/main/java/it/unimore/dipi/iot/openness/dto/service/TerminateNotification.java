@@ -4,9 +4,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.Objects;
-
 /**
+ * "Poison pill" to close the websocket channel between Openness producer and consumer:
+ *  (1) the producer builds the poison pill
+ *  (2) sends the pill through the websocket channel
+ *  (3) the consumer handle reacts by closing the connection
+ *
  * @author Stefano Mariani, Ph.D. - stefano.mariani@unimore.it
  * @project openness-connector
  * @created 14/10/2020 - 12:31
@@ -22,6 +25,12 @@ public class TerminateNotification {
     @JsonProperty("payload")
     private JsonNode payload;
 
+    /**
+     * Builds the poison pill:
+     *  - name = terminate
+     *  - version = 1.0.0
+     *  - payload = ""
+     */
     public TerminateNotification() {
         this.name = "terminate";
         this.version = "1.0.0";
@@ -29,28 +38,31 @@ public class TerminateNotification {
         this.payload = om.valueToTree("");
     }
 
+    /**
+     * Gets the name of the notification (always "terminate")
+     *
+     * @return the name of the notification
+     */
     public String getName() {
         return name;
     }
 
-    public void setName(final String name) {
-        this.name = name;
-    }
-
+    /**
+     * Gets the version of the notification (always "1.0.0")
+     *
+     * @return the version of the notification
+     */
     public String getVersion() {
         return version;
     }
 
-    public void setVersion(final String version) {
-        this.version = version;
-    }
-
+    /**
+     * Gets the payload of the notification (always "")
+     *
+     * @return the payload of the notification
+     */
     public JsonNode getPayload() {
         return payload;
-    }
-
-    public void setPayload(final JsonNode payload) {
-        this.payload = payload;
     }
 
     @Override
