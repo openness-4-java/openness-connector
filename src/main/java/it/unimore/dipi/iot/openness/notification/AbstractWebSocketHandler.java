@@ -9,17 +9,30 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * Base class for implementing websocket notifications handlers:
+ * (1) extend the class
+ * (2) implement events handling methods, at least the onWebSocketConnect
+ * (3) remember to react to the "poison pill" TerminateNotification
+ * (4) profit!
+ *
  * @author Stefano Mariani, Ph.D. - stefano.mariani@unimore.it
  * @project openness-connector
  * @created 16/10/2020 - 9:11
  */
-//@WebSocket(maxTextMessageSize = 64 * 1024)
 public abstract class AbstractWebSocketHandler extends WebSocketAdapter {
 
     protected static final Logger logger = LoggerFactory.getLogger(AbstractWebSocketHandler.class);
     private final CountDownLatch closeLatch = new CountDownLatch(1);
     protected Session session;
 
+    /**
+     * Waits for a given time that the sebsocket connection gets closed.
+     *
+     * @param duration how much to wait
+     * @param unit     the unit of measure of duration
+     * @return whether the await terminates successfully
+     * @throws InterruptedException in case of interruption
+     */
     public boolean awaitClose(int duration, final TimeUnit unit) throws InterruptedException {
         return this.closeLatch.await(duration, unit);
     }
@@ -27,11 +40,10 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter {
     @Override
     public void onWebSocketConnect(Session session) {
 
-        if(session != null) {
+        if (session != null) {
             this.session = session;
             logger.info("Connection to {} open: {} (secured:{})", this.session.getRemoteAddress(), this.session.isOpen(), this.session.isSecure());
-        }
-        else
+        } else
             logger.error("Error ! Session = null !");
     }
 
