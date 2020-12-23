@@ -419,20 +419,12 @@ public class EdgeApplicationConnector {
         return authorizedApplicationConfiguration;
     }
 
-    public void setAuthorizedApplicationConfiguration(AuthorizedApplicationConfiguration authorizedApplicationConfiguration) {
-        this.authorizedApplicationConfiguration = authorizedApplicationConfiguration;
-    }
-
     /**
      * Gets the Openness service API endpoint
      * @return the Openness service API endpoint
      */
     public String getEdgeApplicationServiceEndpoint() {
         return edgeApplicationServiceEndpoint;
-    }
-
-    public void setEdgeApplicationServiceEndpoint(String edgeApplicationServiceEndpoint) {
-        this.edgeApplicationServiceEndpoint = edgeApplicationServiceEndpoint;
     }
 
 }

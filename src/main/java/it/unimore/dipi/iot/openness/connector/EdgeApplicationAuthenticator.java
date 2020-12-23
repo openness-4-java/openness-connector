@@ -417,8 +417,4 @@ public class EdgeApplicationAuthenticator {
         return controllerApiEndpoint;
     }
 
-    public void setControllerApiEndpoint(String controllerApiEndpoint) {
-        this.controllerApiEndpoint = controllerApiEndpoint;
-    }
-
 }
