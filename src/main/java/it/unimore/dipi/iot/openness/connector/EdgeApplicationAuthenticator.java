@@ -55,18 +55,43 @@ import java.util.Optional;
 public class EdgeApplicationAuthenticator {
 
     private static final Logger logger = LoggerFactory.getLogger(EdgeApplicationAuthenticator.class);
-    private final String JAVA_STORE_PASSWORD = "changeit";
+
+    private final String DEFAULT_JAVA_STORE_PASSWORD = "changeit";
+
+    private String javaStorePassword;
+
     private String controllerApiEndpoint;
+
     private static CloseableHttpClient httpClient;
+
     private final ObjectMapper objectMapper;
+
     private KeyPair keyPair = null;
 
     /**
      * Builds the authenticator object
-     *
+     * Use the default password. In the next release this constructor will be removed
      * @param controllerApiEndpoint complete URL where to contact the authentication endpoint
      */
+    @Deprecated
     public EdgeApplicationAuthenticator(String controllerApiEndpoint) {
+        this.javaStorePassword = DEFAULT_JAVA_STORE_PASSWORD;
+        this.controllerApiEndpoint = controllerApiEndpoint;
+        this.objectMapper = new ObjectMapper();
+        httpClient = HttpClients.custom()
+                .build();
+    }
+
+    /**
+     * Builds the authenticator object
+     * @param controllerApiEndpoint complete URL where to contact the authentication endpoint
+     */
+    public EdgeApplicationAuthenticator(String controllerApiEndpoint, String javaStorePassword) throws EdgeApplicationAuthenticatorException{
+
+        if(javaStorePassword == null || javaStorePassword.length() == 0)
+            throw new EdgeApplicationAuthenticatorException("Incorrect Java Store Password ! Null or Empty");
+
+        this.javaStorePassword = javaStorePassword;
         this.controllerApiEndpoint = controllerApiEndpoint;
         this.objectMapper = new ObjectMapper();
         httpClient = HttpClients.custom()
@@ -85,22 +110,31 @@ public class EdgeApplicationAuthenticator {
      * @throws EdgeApplicationAuthenticatorException in case something goes bad while authenticating
      */
     public AuthorizedApplicationConfiguration authenticateApplication(String nameSpace, String applicationId, String organizationName) throws EdgeApplicationAuthenticatorException {
+
         // input validation
         if (this.controllerApiEndpoint == null)
             throw new EdgeApplicationAuthenticatorException("Invalid OpenNess Controller Endpoint ! Null Endpoint provided !");
+
         if (httpClient == null)
             throw new EdgeApplicationAuthenticatorException("Error ! HTTP Client = Null !");
+
         nameSpace = validateNamespace(nameSpace);
         applicationId = validateApplicationId(applicationId);
         organizationName = validateOrganizationName(organizationName);
+
+        //Check if the certs folder is available or create it
+        AuthenticatorFileUtils.checkOrCreateCertificatesFolder();
+
         try {
+
             // pre-processing
             logger.info("Authenticating Application -> Namespace: {} ApplicationId: {} OrganizationName:{}", nameSpace, applicationId, organizationName);
             String applicationUniqueIdentifier = generateApplicationUniqueIdentifier(applicationId, organizationName);
             checkApplicationKeyPair(applicationUniqueIdentifier);
             Optional<String> csrString = generateCertificateSigningRequest(organizationName, nameSpace, applicationId);
-            if (csrString.isEmpty())
+            if(csrString.isEmpty())
                 throw new EdgeApplicationAuthenticatorException("Error Generating Certificate Signing Request !");
+
             // Create ApplicationAuthenticationRequest
             ApplicationAuthenticationRequest applicationAuthenticationRequest = new ApplicationAuthenticationRequest();
             applicationAuthenticationRequest.setCertificateSigningRequest(csrString.get());
@@ -110,8 +144,10 @@ public class EdgeApplicationAuthenticator {
             HttpPost authPost = new HttpPost(this.controllerApiEndpoint + AUTH_API_RESOURCE);
             authPost.setEntity(new StringEntity(jsonBody));
             CloseableHttpResponse response = httpClient.execute(authPost);
+
             // handle response
             if (response != null) {
+
                 String bodyString = EntityUtils.toString(response.getEntity());
                 logger.info("Application Authentication Response Code: {}", response.getStatusLine().getStatusCode());
                 logger.debug("Response Body: {}", bodyString);
@@ -119,12 +155,13 @@ public class EdgeApplicationAuthenticator {
                 String caChainFilePath = AuthenticatorFileUtils.getCaChainFilePath(applicationUniqueIdentifier);
                 String caPoolFilePath = AuthenticatorFileUtils.getCaPoolFilePath(applicationUniqueIdentifier);
                 handleAuthenticationResponse(bodyString, clientCertificateFilePath, caChainFilePath, caPoolFilePath);
+
                 //Generate Java TrustStore and KeyStore management files
                 String trustStoreOutputFilePath = AuthenticatorFileUtils.getTrustStoreOutputFilePath(applicationUniqueIdentifier);
                 String clientChainCertificateOutputFilePath = AuthenticatorFileUtils.getClientChainOutputFilePath(applicationUniqueIdentifier);
                 String keyStoreOutputFilePath = AuthenticatorFileUtils.getKeyStoreOutputFilePath(applicationUniqueIdentifier);
                 String DOMAIN_ALIAS = "eaa.openness";
-                generateJavaSecurityFiles(JAVA_STORE_PASSWORD,
+                generateJavaSecurityFiles(this.javaStorePassword,
                         DOMAIN_ALIAS,
                         clientCertificateFilePath,
                         AuthenticatorFileUtils.getPrivateKeyFilePath(applicationUniqueIdentifier),
@@ -133,6 +170,7 @@ public class EdgeApplicationAuthenticator {
                         clientChainCertificateOutputFilePath,
                         keyStoreOutputFilePath,
                         String.format("%s%s", applicationId, organizationName));
+
                 // build returned configuration
                 return new AuthorizedApplicationConfiguration(applicationUniqueIdentifier,
                         applicationId,
@@ -140,7 +178,7 @@ public class EdgeApplicationAuthenticator {
                         trustStoreOutputFilePath,
                         keyStoreOutputFilePath,
                         this.controllerApiEndpoint,
-                        JAVA_STORE_PASSWORD);
+                        this.javaStorePassword);
             } else {
                 String errorMsg = "Error Authenticating Application ! Response Body: NULL !";
                 logger.error(errorMsg);
@@ -197,7 +235,7 @@ public class EdgeApplicationAuthenticator {
                         AuthenticatorFileUtils.getTrustStoreOutputFilePath(applicationUniqueIdentifier),
                         AuthenticatorFileUtils.getKeyStoreOutputFilePath(applicationUniqueIdentifier),
                         this.controllerApiEndpoint,
-                        JAVA_STORE_PASSWORD));
+                        this.javaStorePassword));
             else
                 return Optional.empty();
         } catch (Exception e) {
@@ -327,22 +365,26 @@ public class EdgeApplicationAuthenticator {
 
     /**
      * Utility method to generate required security files
+     * Currently it support only Linux environment with the following applications:
      *
-     * @param storePassword
-     * @param domainAlias
-     * @param clientCertificateFilePath
-     * @param clientPrivateKey
-     * @param caCertificateFilePath
-     * @param trustStoreOutputFilePath
-     * @param clientChainCertificateOutputFilePath
-     * @param keyStoreOutputFilePath
-     * @param appId
+     * - keytool
+     * - openssl
+     *
+     * @param storePassword password associate to the security files
+     * @param domainAlias domain alias for Java security files
+     * @param clientCertificateFilePath path of the client certificate file
+     * @param clientPrivateKey private key of the client
+     * @param caCertificateFilePath CA Certificate file path
+     * @param trustStoreOutputFilePath target Java TrustStore output File Path
+     * @param clientChainCertificateOutputFilePath target Client Chain Certificate file path
+     * @param keyStoreOutputFilePath target Java KeyStore output File Path
+     * @param appId Id of the target application
      *
      * @throws CommandLineException
      * @throws EdgeApplicationAuthenticatorException
      * @throws IOException
      */
-    public void generateJavaSecurityFiles(String storePassword,
+    private void generateJavaSecurityFiles(String storePassword,
                                           String domainAlias,
                                           String clientCertificateFilePath,
                                           String clientPrivateKey,

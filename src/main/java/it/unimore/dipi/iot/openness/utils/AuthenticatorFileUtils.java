@@ -1,5 +1,7 @@
 package it.unimore.dipi.iot.openness.utils;
 
+import it.unimore.dipi.iot.openness.exception.EdgeApplicationAuthenticatorException;
+
 import java.io.File;
 
 /**
@@ -9,7 +11,31 @@ import java.io.File;
  */
 public class AuthenticatorFileUtils {
 
-    private static final String CERT_BASE_FOLDER = "certs/";
+    public static final String CERT_BASE_FOLDER = "certs/";
+
+    /**
+     * Check and create if the target certificate folder exists or needs to be created
+     * @return
+     */
+    public static File checkOrCreateCertificatesFolder() throws EdgeApplicationAuthenticatorException {
+
+        try{
+            File metricsFolder = new File(CERT_BASE_FOLDER);
+
+            boolean result = false;
+
+            if(!metricsFolder.exists()){
+                result = metricsFolder.mkdir();
+                if(!result)
+                    throw new EdgeApplicationAuthenticatorException("Error creating target Certificate Folder ! Target Path: " + CERT_BASE_FOLDER);
+            }
+
+            return metricsFolder;
+
+        } catch (Exception e){
+            throw new EdgeApplicationAuthenticatorException(e.getLocalizedMessage());
+        }
+    }
 
     /**
      *

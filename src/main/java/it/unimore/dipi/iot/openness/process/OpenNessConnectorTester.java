@@ -33,9 +33,11 @@ public class OpenNessConnectorTester {
             String nameSpace = "testing_v2";
             String organizationName =  "DIPIUniMore";
 
+            String myJavaStorePassword = "mypwd_test";
+
             AuthorizedApplicationConfiguration authorizedApplicationConfiguration;
 
-            EdgeApplicationAuthenticator edgeApplicationAuthenticator = new EdgeApplicationAuthenticator(OPENNESS_CONTROLLER_BASE_AUTH_URL);
+            EdgeApplicationAuthenticator edgeApplicationAuthenticator = new EdgeApplicationAuthenticator(OPENNESS_CONTROLLER_BASE_AUTH_URL, myJavaStorePassword);
 
             Optional<AuthorizedApplicationConfiguration> storedConfiguration = edgeApplicationAuthenticator.loadExistingAuthorizedApplicationConfiguration(applicationId, organizationName);
 
