@@ -9,3 +9,4 @@ csv/
 .gradle
 *.iml
 certs/
+settings.xml
